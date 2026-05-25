@@ -51,20 +51,20 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 os.makedirs(OUT, exist_ok=True)
 
 # ── [修复 Bug 1] 高区分度配色方案 ────────────────────────────────────────
-IDBO_RED = "#C00000"          # IDBO 纯红色实线
+IDBO_BLUE = "#003380"        # IDBO 深海军蓝（PPT 主题）
 
-# 7 种对比算法：完全不同的颜色 + 不同线型
+# 7 种对比算法：专业冷色调 + 不同线型
 ALG8 = ["IDBO", "ESA", "VCS", "HGS", "IGOA", "GWO", "WOA", "SA"]
 
 ALG_COL = {
-    "IDBO": "#C00000",   # 纯红
-    "ESA":  "#E67E22",   # 橙色
-    "VCS":  "#27AE60",   # 绿色
-    "HGS":  "#8E44AD",   # 紫色
-    "IGOA": "#8B4513",   # 棕色
-    "GWO":  "#7F8C8D",   # 灰色
-    "WOA":  "#E91E90",   # 粉色
-    "SA":   "#16A085",   # 青色
+    "IDBO": "#003380",   # 深海军蓝（本文算法）
+    "ESA":  "#708090",   # 石板灰
+    "VCS":  "#556B6F",   # 暗灰蓝
+    "HGS":  "#8B8B7A",   # 灰绿
+    "IGOA": "#9B8B6E",   # 软金色
+    "GWO":  "#6E7B8B",   # 淡钢蓝
+    "WOA":  "#7B8E9B",   # 灰蓝
+    "SA":   "#A0A8B0",   # 淡灰
 }
 
 # 线型对照表（用于 Fig 1 / Fig 7 / Fig 8）
@@ -92,10 +92,10 @@ DATA_ITAE = {
 }
 
 ABLATION = [
-    ("IDBO\n(完整)",            0.00252, 0.0,  "#C00000"),
-    ("W/O GA\n(移除GA初始化)",  0.00272, 8.2,  "#E67E22"),
-    ("W/O ADE\n(移除ADE机制)",  0.00282, 11.8, "#E67E22"),
-    ("W/O HGCM\n(移除HGCM机制)", 0.00268, 6.4,  "#E67E22"),
+    ("IDBO\n(完整)",            0.00252, 0.0,  "#003380"),
+    ("W/O GA\n(移除GA初始化)",  0.00272, 8.2,  "#708090"),
+    ("W/O ADE\n(移除ADE机制)",  0.00282, 11.8, "#708090"),
+    ("W/O HGCM\n(移除HGCM机制)", 0.00268, 6.4,  "#708090"),
 ]
 
 BENCHMARK = [
@@ -117,10 +117,10 @@ AST_SORTED = [
 ]
 
 ABLATION_AST = [
-    ("IDBO\n(完整)",            3.68, "#C00000"),
-    ("W/O GA\n(移除GA初始化)",  3.55, "#E67E22"),
-    ("W/O ADE\n(移除ADE机制)",  3.48, "#E67E22"),
-    ("W/O HGCM\n(移除HGCM机制)", 3.52, "#E67E22"),
+    ("IDBO\n(完整)",            3.68, "#003380"),
+    ("W/O GA\n(移除GA初始化)",  3.55, "#708090"),
+    ("W/O ADE\n(移除ADE机制)",  3.48, "#708090"),
+    ("W/O HGCM\n(移除HGCM机制)", 3.52, "#708090"),
 ]
 
 
@@ -208,7 +208,7 @@ def draw_fig1():
                 alpha=alpha, label=alg, zorder=z)
 
     ell = Ellipse((72, 0.0212), width=22, height=0.009, angle=0,
-                  fc="none", ec=IDBO_RED, lw=0.8, ls=(0, (3, 4)), alpha=0.55)
+                  fc="none", ec=IDBO_BLUE, lw=0.8, ls=(0, (3, 4)), alpha=0.55)
     ax.add_patch(ell)
 
     ax.set_xlabel("迭代次数", fontsize=12, color="#000000")
@@ -217,8 +217,8 @@ def draw_fig1():
     ax.set_ylim(0.016, 0.055)
     open_axes(ax)
 
-    legend = ax.legend(loc="upper right", ncol=4, frameon=True,
-                       framealpha=0.95, edgecolor="#cccccc", fontsize=9,
+    legend = ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.12),
+                       ncol=4, frameon=False, fontsize=9,
                        columnspacing=0.8, handlelength=2.0, handletextpad=0.5)
 
     # ── [修复 Bug 2] 内嵌放大图：移除 Y 轴标签，移至右上角 ──
@@ -372,9 +372,9 @@ def draw_fig4():
     for i, alg in enumerate(algs):
         is_idbo = (alg == "IDBO")
         if is_idbo:
-            g.ax_joint.scatter(asts[i], itaes[i], s=300, color="#C00000",
+            g.ax_joint.scatter(asts[i], itaes[i], s=300, color="#003380",
                                marker="*", zorder=20,
-                               edgecolors="#880000", linewidths=0.8, alpha=1.0)
+                               edgecolors="#001a4d", linewidths=0.8, alpha=1.0)
         else:
             g.ax_joint.scatter(asts[i], itaes[i], s=110, color=ALG_COL[alg],
                                marker="o", zorder=5,
@@ -402,7 +402,7 @@ def draw_fig4():
             textcoords="offset points",
             fontsize=12 if is_idbo else 9.5,
             fontweight="bold" if is_idbo else "normal",
-            color="#C00000" if is_idbo else ALG_COL[alg],
+            color="#003380" if is_idbo else ALG_COL[alg],
             ha="center", va="center",
         )
 
@@ -521,16 +521,15 @@ def draw_fig7():
     freq_dbo  = gen_freq(1.08, 1.20, 0.125, t, t0)
     freq_idbo = gen_freq(1.50, 1.28, 0.098, t, t0)
 
-    # [Bug 1 修复] 使用高区分度颜色 + 不同线型
-    ax.plot(t, freq_exp,  color="#8B4513", lw=1.8, ls="--",  label="经验参数组")
-    ax.plot(t, freq_dbo,  color="#27AE60", lw=1.8, ls="-.",  label="DBO 优化组")
-    ax.plot(t, freq_idbo, color="#C00000", lw=2.5, ls="-",   label="IDBO 优化组（本文）")
+    ax.plot(t, freq_exp,  color="#9B8B6E", lw=1.8, ls="--",  label="经验参数组")
+    ax.plot(t, freq_dbo,  color="#6E7B8B", lw=1.8, ls="-.",  label="DBO 优化组")
+    ax.plot(t, freq_idbo, color="#003380", lw=2.5, ls="-",   label="IDBO 优化组（本文）")
     ax.axhline(50.0, color="gray", lw=0.8, ls=":")
 
     for ts, lb, col, yoff in [
-        (3.20, "3.20 s", "#8B4513", +0.032),
-        (3.03, "3.03 s", "#27AE60", -0.032),
-        (2.60, "2.60 s", "#C00000", +0.032),
+        (3.20, "3.20 s", "#9B8B6E", +0.032),
+        (3.03, "3.03 s", "#6E7B8B", -0.032),
+        (2.60, "2.60 s", "#003380", +0.032),
     ]:
         ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
         ax.text(t0 + ts + 0.06, 50.0 + yoff, lb, color=col,
@@ -577,15 +576,15 @@ def draw_fig8():
     spd_idbo = gen_speed(1.50, 1.25, amp_idbo, t, t0)
 
     # [Bug 1 修复] 使用高区分度颜色 + 不同线型
-    ax.plot(t, spd_exp,  color="#8B4513", lw=1.8, ls="--",  label="经验参数组")
-    ax.plot(t, spd_dbo,  color="#27AE60", lw=1.8, ls="-.",  label="DBO 优化组")
-    ax.plot(t, spd_idbo, color="#C00000", lw=2.5, ls="-",   label="IDBO 优化组（本文）")
+    ax.plot(t, spd_exp,  color="#9B8B6E", lw=1.8, ls="--",  label="经验参数组")
+    ax.plot(t, spd_dbo,  color="#6E7B8B", lw=1.8, ls="-.",  label="DBO 优化组")
+    ax.plot(t, spd_idbo, color="#003380", lw=2.5, ls="-",   label="IDBO 优化组（本文）")
     ax.axhline(0, color="gray", lw=0.8, ls=":")
 
     for ts, lb, col, yoff in [
-        (3.50, "3.50 s", "#8B4513", +0.0016),
-        (3.10, "3.10 s", "#27AE60", -0.0016),
-        (2.70, "2.70 s", "#C00000", +0.0016),
+        (3.50, "3.50 s", "#9B8B6E", +0.0016),
+        (3.10, "3.10 s", "#6E7B8B", -0.0016),
+        (2.70, "2.70 s", "#003380", +0.0016),
     ]:
         ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
         ax.text(t0 + ts + 0.06, yoff, lb, color=col,
