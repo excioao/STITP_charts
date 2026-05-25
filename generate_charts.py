@@ -233,9 +233,10 @@ def draw_fig1():
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    ax_in.set_ylim(0.017, 0.032)
+    ax_in.set_ylim(0.0175, 0.0300)
+    ax_in.yaxis.tick_right()
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
-    ax_in.set_ylabel("")   # 移除 Y 轴标签
+    ax_in.set_ylabel("")
     ax_in.tick_params(labelsize=7, direction="in", length=2.5, width=0.6,
                       pad=2, color="#000000")
     ax_in.spines["top"].set_visible(False)
