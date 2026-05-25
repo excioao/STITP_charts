@@ -214,7 +214,7 @@ def draw_fig1():
     ax.set_xlabel("迭代次数", fontsize=12, color="#000000")
     ax.set_ylabel("ITAE 收敛值", fontsize=12, color="#000000")
     ax.set_xlim(0, 102)
-    ax.set_ylim(0.016, 0.055)
+    ax.set_ylim(0.016, 0.8)
     open_axes(ax)
 
     legend = ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02),
