@@ -233,11 +233,7 @@ def draw_fig1():
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    # 动态计算 Y 轴范围：以 IDBO + ESA 在第 55-85 迭代的极值为基准，紧贴曲线
-    inset_ymin = min(np.min(curves["IDBO"][54:85]), np.min(curves["ESA"][54:85]))
-    inset_ymax = max(np.max(curves["IDBO"][54:85]), np.max(curves["ESA"][54:85]))
-    inset_margin = (inset_ymax - inset_ymin) * 0.12
-    ax_in.set_ylim(inset_ymin - inset_margin, inset_ymax + inset_margin)
+    ax_in.set_ylim(0.017, 0.032)
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
     ax_in.set_ylabel("")   # 移除 Y 轴标签
     ax_in.tick_params(labelsize=7, direction="in", length=2.5, width=0.6,
