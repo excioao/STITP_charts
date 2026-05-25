@@ -217,7 +217,7 @@ def draw_fig1():
     ax.set_ylim(0.016, 0.055)
     open_axes(ax)
 
-    legend = ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.12),
+    legend = ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02),
                        ncol=4, frameon=False, fontsize=9,
                        columnspacing=0.8, handlelength=2.0, handletextpad=0.5)
 
@@ -246,7 +246,7 @@ def draw_fig1():
                lw=0.6, alpha=0.6)
 
     ax.set_title("图 1：8 种算法 ITAE 收敛曲线（含 55–85 迭代局部放大）",
-                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+                 fontsize=14, fontweight="bold", pad=45, color="#000000")
     add_note(fig, "IDBO 在迭代后期借助 ADE 机制实现二次下降，最终收敛值优于其他对比算法。")
     save(fig, "Fig1_ITAE_Convergence.png")
 
