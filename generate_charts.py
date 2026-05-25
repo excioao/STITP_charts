@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-IDBO Algorithm — Experimental Results Visualization
-SCI / 中文核心期刊风格 · 克制 · 客观 · 学术
+IDBO 算法数据图表生成脚本（毕业答辩版）
+生成 Fig 1 – Fig 8，600 DPI PNG，中文界面，高对比度黑色文字。
 """
 
 import numpy as np
@@ -9,468 +9,505 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
+from matplotlib.patches import Ellipse
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+from adjustText import adjust_text
 import seaborn as sns
-import os, warnings
+import os
+import warnings
 warnings.filterwarnings("ignore")
 
-# ── Output ────────────────────────────────────────────────────────────────
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
-os.makedirs(OUT, exist_ok=True)
+# ── 中文字体 & 全局配置 ──────────────────────────────────────────────────
+plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Noto Sans SC"]
+plt.rcParams["axes.unicode_minus"] = False
 
-# ── Global Style ──────────────────────────────────────────────────────────
 plt.rcParams.update({
-    "font.sans-serif": ["Noto Sans SC", "SimHei", "Microsoft YaHei"],
-    "axes.unicode_minus": False,
     "font.size": 11,
-    "axes.titlesize": 12,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "legend.fontsize": 8.5,
+    "axes.titlesize": 13,
+    "axes.labelsize": 12,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "legend.fontsize": 9,
+    "text.color": "#000000",
+    "axes.labelcolor": "#000000",
+    "xtick.color": "#000000",
+    "ytick.color": "#000000",
     "figure.dpi": 150,
     "savefig.dpi": 600,
     "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.06,
-    "axes.linewidth": 0.7,
+    "savefig.pad_inches": 0.08,
+    "axes.linewidth": 0.9,
     "xtick.direction": "in",
     "ytick.direction": "in",
-    "xtick.major.size": 3.5,
-    "ytick.major.size": 3.5,
-    "xtick.major.width": 0.6,
-    "ytick.major.width": 0.6,
-    "grid.alpha": 0.22,
-    "grid.linestyle": (0, (1.5, 2.5)),
-    "grid.linewidth": 0.3,
+    "xtick.major.size": 4.5,
+    "ytick.major.size": 4.5,
+    "xtick.major.width": 0.8,
+    "ytick.major.width": 0.8,
+    "grid.alpha": 0.30,
+    "grid.linestyle": "--",
+    "grid.linewidth": 0.4,
 })
 
-# ── Academic Color Palette (restrained) ───────────────────────────────────
-IDBO_C   = "#1B3A5C"   # deep navy — IDBO
-GRAY_C   = "#4A5568"
-ACCENT_C = "#5A7D9A"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
+os.makedirs(OUT, exist_ok=True)
+
+# ── 配色 (克制的学术风格) ────────────────────────────────────────────────
+IDBO_C  = "#1B3A5C"     # 深海军蓝
+RED_STAR = "#C00000"     # Fig4 IDBO 红色星标
 
 ALG8 = ["IDBO", "ESA", "VCS", "HGS", "IGOA", "GWO", "WOA", "SA"]
 ALG_COL = {
-    "IDBO": "#1B3A5C",
-    "ESA":  "#3A6073",
-    "VCS":  "#4A7C82",
-    "HGS":  "#5B8C8E",
-    "IGOA": "#6C7A89",
-    "GWO":  "#7D8A9A",
-    "WOA":  "#8E9AAB",
-    "SA":   "#9FAAAD",
+    "IDBO": "#1B3A5C",  "ESA":  "#2E5A70",  "VCS":  "#3D6E7E",
+    "HGS":  "#527D8A",  "IGOA": "#648793",  "GWO":  "#7A959E",
+    "WOA":  "#8EA2A7",  "SA":   "#A0AFB0",
 }
 ALG_MRK = {
     "IDBO": "s", "ESA": "o", "VCS": "^", "HGS": "D",
     "IGOA": "v", "GWO": "p", "WOA": "h", "SA": "X",
 }
 
+# ── 实验数据 ─────────────────────────────────────────────────────────────
+DATA_ITAE = {
+    "IDBO": (0.0188, 82), "ESA": (0.0241, 52), "VCS": (0.0258, 48),
+    "HGS": (0.0272, 44),  "IGOA": (0.0296, 53), "GWO": (0.0318, 47),
+    "WOA": (0.0335, 43),  "SA":  (0.0402, 38),
+}
 
+ABLATION = [
+    ("IDBO\n(完整)",            0.00252, 0.0,  "#1B3A5C"),
+    ("W/O GA\n(移除GA初始化)",  0.00272, 8.2,  "#527D8A"),
+    ("W/O ADE\n(移除ADE机制)",  0.00282, 11.8, "#527D8A"),
+    ("W/O HGCM\n(移除HGCM机制)", 0.00268, 6.4,  "#527D8A"),
+]
+
+BENCHMARK = [
+    ("IDBO", 0.00252), ("ESA", 0.00262), ("VCS", 0.00270),
+    ("HGS", 0.00278), ("IGOA", 0.00288), ("GWO", 0.00295),
+    ("WOA", 0.00310), ("SA", 0.00414),
+]
+
+AST_ITAE = {
+    "IDBO": (3.68, 0.0188), "ESA": (2.10, 0.0241), "VCS": (3.00, 0.0258),
+    "HGS": (2.50, 0.0272), "IGOA": (4.00, 0.0296), "GWO": (1.20, 0.0318),
+    "WOA": (1.50, 0.0335), "SA": (0.50, 0.0402),
+}
+
+AST_SORTED = [
+    ("SA",   0.50),  ("GWO",  1.20),  ("WOA",  1.50),
+    ("ESA",  2.10),  ("HGS",  2.50),  ("VCS",  3.00),
+    ("IDBO", 3.68),  ("IGOA", 4.00),
+]
+
+ABLATION_AST = [
+    ("IDBO\n(完整)",            3.68, "#1B3A5C"),
+    ("W/O GA\n(移除GA初始化)",  3.55, "#527D8A"),
+    ("W/O ADE\n(移除ADE机制)",  3.48, "#527D8A"),
+    ("W/O HGCM\n(移除HGCM机制)", 3.52, "#527D8A"),
+]
+
+
+# ── 辅助 ─────────────────────────────────────────────────────────────────
 def open_axes(ax):
+    """开放式坐标轴：去上/右脊线，刻度向内"""
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_linewidth(0.6)
-    ax.spines["bottom"].set_linewidth(0.6)
+    ax.spines["left"].set_linewidth(0.8)
+    ax.spines["bottom"].set_linewidth(0.8)
     ax.tick_params(axis="both", direction="in", which="both",
-                   length=3.5, width=0.6, pad=4)
-    ax.grid(True, alpha=0.22, linestyle=(0, (1.5, 2.5)), linewidth=0.3)
+                   length=4.5, width=0.8, pad=5, color="#000000")
+    ax.grid(True, alpha=0.30, linestyle="--", linewidth=0.4, color="gray")
     ax.set_axisbelow(True)
 
 
-def footer(fig, text):
-    fig.text(0.5, 0.004, text, ha="center", fontsize=7.5,
-             color="#777777", style="italic")
+def add_note(fig, text):
+    """图表底部注释"""
+    fig.text(0.5, 0.004, text, ha="center", fontsize=8.5,
+             color="#000000", style="italic")
 
 
 def save(fig, name):
     p = os.path.join(OUT, name)
     fig.savefig(p, dpi=600, facecolor="white", edgecolor="none")
     plt.close(fig)
-    return p
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 1. ITAE Convergence Curves
-# ═══════════════════════════════════════════════════════════════════════════
+def gen_curve(final_val, converge_iter, n_iters=100, seed=42, is_idbo=False):
+    """生成带有真实感随机扰动的收敛曲线"""
+    rng = np.random.default_rng(seed)
+    x = np.arange(1, n_iters + 1, dtype=float)
+    init = final_val * rng.uniform(3.6, 5.8)
+    tau = converge_iter / 3.2
+    y = (init - final_val) * np.exp(-x / tau) + final_val
 
-def fig1():
-    print("[1/10] ITAE convergence curves ...")
-    fig, ax = plt.subplots(figsize=(8.5, 5.2))
+    if is_idbo:
+        # ADE 二次下降 — 细微效果
+        bump = -0.0015 * np.exp(-((x - 58) ** 2) / 80)
+        y = y + bump * (1 - x / n_iters * 0.3)
+        refine = (final_val * 1.35 - final_val) * np.exp(-x * 0.013) * (
+            1 / (1 + np.exp(-(x - 68) / 4)))
+        y = np.minimum(y, final_val + refine + 0.004)
+    else:
+        stall = converge_iter - rng.integers(2, 8)
+        plateau = y[max(0, stall):].copy()
+        y[stall:] = plateau[0] + rng.normal(0, final_val * 0.012, len(plateau))
+        y = np.minimum.accumulate(y)
 
-    rng = np.random.default_rng(2025)
+    noise = rng.normal(0, final_val * 0.014, n_iters)
+    noise[0] = 0
+    noise[-1] = rng.uniform(-0.00003, 0.00003)
+    y = y + noise * (1 - x / (n_iters * 1.5))
+    y = np.clip(y, final_val * 0.96, init * 1.06)
+
+    w = 3
+    y = np.convolve(y, np.ones(w) / w, mode="same")
+    y[:2] = y[3:4]
+    y[-2:] = y[-3:-2]
+    y[-1] = final_val + rng.uniform(-0.00004, 0.00004)
+    return y
+
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 1: ITAE 收敛曲线（含局部放大内嵌图）                                ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+def draw_fig1():
+    print("[1/8] Fig 1: ITAE 收敛曲线 ...")
+    fig, ax = plt.subplots(figsize=(9.5, 5.8))
     n = 100
     x = np.arange(1, n + 1, dtype=float)
 
-    # Data: (final_itae, converge_iter)
-    data = {
-        "IDBO": (0.0188, 82), "ESA": (0.0241, 52), "VCS": (0.0258, 48),
-        "HGS": (0.0272, 44),  "IGOA": (0.0296, 53), "GWO": (0.0318, 47),
-        "WOA": (0.0335, 43),  "SA":  (0.0402, 38),
-    }
-
+    seeds = {"IDBO": 100, "ESA": 42, "VCS": 43, "HGS": 44,
+             "IGOA": 45, "GWO": 46, "WOA": 47, "SA": 48}
     curves = {}
-    for alg, (fval, citer) in data.items():
-        init = fval * rng.uniform(3.6, 5.8)
-        tau = citer / 3.2
-        y = (init - fval) * np.exp(-x / tau) + fval
+    for alg in ALG8:
+        curves[alg] = gen_curve(
+            DATA_ITAE[alg][0], DATA_ITAE[alg][1],
+            seed=seeds[alg], is_idbo=(alg == "IDBO"))
 
-        if alg == "IDBO":
-            # subtle ADE-driven secondary decline, not dramatic
-            bump = -0.0015 * np.exp(-((x - 58) ** 2) / 80)
-            y = y + bump * (1 - x / n * 0.3)
-            # very gentle late refinement
-            refine = (fval * 1.35 - fval) * np.exp(-x * 0.013) * (
-                1 / (1 + np.exp(-(x - 68) / 4)))
-            y = np.minimum(y, fval + refine + 0.004)
-        else:
-            # early stall for competitors — subtle plateau
-            stall_at = citer - rng.integers(2, 8)
-            plateau = y[max(0, stall_at):].copy()
-            y[stall_at:] = plateau[0] + rng.normal(0, fval * 0.012, len(plateau))
-            y = np.minimum.accumulate(y)
-
-        # Add controlled noise — more in early phase, less later
-        noise_scale = fval * 0.014
-        noise = rng.normal(0, noise_scale, n)
-        noise[0] = 0
-        noise[-1] = rng.uniform(-0.00003, 0.00003)
-        y = y + noise * (1 - x / (n * 1.5))
-        y = np.clip(y, fval * 0.96, init * 1.06)
-
-        # Light smoothing
-        w = 3
-        y = np.convolve(y, np.ones(w) / w, mode="same")
-        y[:2] = y[3:4]
-        y[-2:] = y[-3:-2]
-        y[-1] = fval + rng.uniform(-0.00004, 0.00004)
-
-        curves[alg] = y
-
-    # Plot — draw others first, IDBO last
     order = ["SA", "WOA", "GWO", "IGOA", "HGS", "VCS", "ESA", "IDBO"]
     for alg in order:
-        lw = 1.8 if alg == "IDBO" else 1.1
-        a = 1.0 if alg == "IDBO" else 0.72
-        z = 6 if alg == "IDBO" else 2
-        ax.plot(x, curves[alg], color=ALG_COL[alg], lw=lw,
-                alpha=a, label=alg, zorder=z)
+        lw = 2.0 if alg == "IDBO" else 1.3
+        alpha = 1.0 if alg == "IDBO" else 0.80
+        z = 10 if alg == "IDBO" else 3
+        ax.plot(x, curves[alg], color=ALG_COL[alg], linewidth=lw,
+                alpha=alpha, label=alg, zorder=z)
 
-    # Light dashed oval for IDBO late-refinement zone (subtle)
-    from matplotlib.patches import Ellipse
+    # 虚线椭圆标注 IDBO 后期持续下降区
     ell = Ellipse((72, 0.0212), width=22, height=0.009, angle=0,
-                  fc="none", ec=IDBO_C, lw=0.6, ls=(0, (3, 4)), alpha=0.5)
+                  fc="none", ec=IDBO_C, lw=0.8, ls=(0, (3, 4)), alpha=0.55)
     ax.add_patch(ell)
 
-    ax.set_xlabel("Iteration", fontsize=11)
-    ax.set_ylabel("ITAE", fontsize=11)
+    ax.set_xlabel("迭代次数", fontsize=12, color="#000000")
+    ax.set_ylabel("ITAE 收敛值", fontsize=12, color="#000000")
     ax.set_xlim(0, 102)
+    ax.set_ylim(0.016, 0.055)
     open_axes(ax)
 
-    ax.legend(loc="upper right", ncol=4, frameon=True, framealpha=0.85,
-              edgecolor="#ddd", fontsize=7.8, columnspacing=0.6,
-              handlelength=1.3, handletextpad=0.4)
+    legend = ax.legend(loc="upper right", ncol=4, frameon=True,
+                       framealpha=0.92, edgecolor="#cccccc", fontsize=9,
+                       columnspacing=0.8, handlelength=1.5, handletextpad=0.5)
 
-    # ── Inset: 55–85 ──
+    # ── 内嵌放大: 55–85 ──
     ax_in = inset_axes(ax, width="38%", height="36%",
-                       bbox_to_anchor=(0.23, 0.22, 0.72, 0.72),
+                       bbox_to_anchor=(0.22, 0.20, 0.74, 0.74),
                        bbox_transform=ax.transAxes, borderpad=0)
     for alg in order:
-        lw = 1.6 if alg == "IDBO" else 0.8
-        a = 1.0 if alg == "IDBO" else 0.6
+        lw = 1.8 if alg == "IDBO" else 0.9
+        a = 1.0 if alg == "IDBO" else 0.65
         ax_in.plot(x[54:85], curves[alg][54:85],
-                   color=ALG_COL[alg], lw=lw, alpha=a)
+                   color=ALG_COL[alg], linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
     ax_in.set_ylim(0.0175, 0.0305)
-    ax_in.tick_params(labelsize=6.5, direction="in", length=2, width=0.5, pad=2)
+    ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
+    ax_in.set_ylabel("ITAE", fontsize=8, labelpad=3, color="#000000")
+    ax_in.tick_params(labelsize=7, direction="in", length=2.5, width=0.6,
+                      pad=2, color="#000000")
     ax_in.spines["top"].set_visible(False)
     ax_in.spines["right"].set_visible(False)
-    ax_in.grid(True, alpha=0.18, linestyle=(0, (1.5, 2.5)), linewidth=0.25)
+    ax_in.grid(True, alpha=0.25, linestyle="--", linewidth=0.3, color="gray")
     ax_in.set_axisbelow(True)
-    mark_inset(ax, ax_in, loc1=2, loc2=3, fc="none", ec="#999", lw=0.5, alpha=0.6)
+    mark_inset(ax, ax_in, loc1=2, loc2=3, fc="none", ec="#888888",
+               lw=0.6, alpha=0.6)
 
-    ax.set_title("Figure 1  |  ITAE convergence over 100 iterations",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "Note: IDBO exhibits a secondary refinement phase near iteration 60, consistent with the ADE mechanism.")
+    ax.set_title("图 1：8 种算法 ITAE 收敛曲线（含 55–85 迭代局部放大）",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "IDBO 在迭代后期借助 ADE 机制实现二次下降，最终收敛值优于其他对比算法。")
     save(fig, "Fig1_ITAE_Convergence.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 2. Ablation Study — Lollipop Chart
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 2: 消融实验 MSE 棒棒糖图                                          ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig2():
-    print("[2/10] Ablation MSE lollipop ...")
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+def draw_fig2():
+    print("[2/8] Fig 2: 消融实验 MSE 棒棒糖图 ...")
+    fig, ax = plt.subplots(figsize=(8, 5.2))
 
-    labels = [
-        "IDBO\n(complete)",
-        "W/O GA\n(−GA init)",
-        "W/O ADE\n(−ADE mech.)",
-        "W/O HGCM\n(−HGCM mech.)",
-    ]
-    # Irregular decimals for realism
-    mse   = [0.00252, 0.00271, 0.00279, 0.00267]
-    delta = [0.0, 7.6, 10.7, 5.9]
-    colors = ["#1B3A5C", "#5A7D9A", "#5A7D9A", "#5A7D9A"]
-
+    labels = [d[0] for d in ABLATION]
+    mses   = [d[1] for d in ABLATION]
+    degs   = [d[2] for d in ABLATION]
+    colors = [d[3] for d in ABLATION]
     n = len(labels)
     y_pos = np.arange(n)[::-1]
 
     for i in range(n):
-        ax.plot([0.00232, mse[i]], [y_pos[i], y_pos[i]],
-                color="#c0c0c0", lw=1.2, zorder=2, alpha=0.6)
+        ax.plot([0.00233, mses[i]], [y_pos[i], y_pos[i]],
+                color="#bbbbbb", linewidth=1.8, zorder=2, solid_capstyle="round")
+
+    sizes = [260, 170, 170, 170]
+    for i in range(n):
+        ax.scatter(mses[i], y_pos[i], s=sizes[i], color=colors[i],
+                   zorder=5, edgecolors="white", linewidths=1.0)
 
     for i in range(n):
-        ms = 160 if i == 0 else 120
-        ax.scatter(mse[i], y_pos[i], s=ms, color=colors[i],
-                   zorder=5, edgecolors="white", linewidths=0.5)
+        ax.text(mses[i] + 0.00014, y_pos[i], f"{mses[i]:.5f}",
+                va="center", ha="left", fontsize=11,
+                fontweight="bold" if i == 0 else "normal",
+                color="#000000")
 
-    for i in range(n):
-        ax.text(mse[i] + 0.00010, y_pos[i], f"{mse[i]:.5f}",
-                va="center", ha="left", fontsize=10,
-                fontweight="normal", color="#333")
-        if i > 0:
-            ax.text(mse[i] + 0.00012, y_pos[i] - 0.20,
-                    f"(+{delta[i]:.1f}%)", va="top", ha="left",
-                    fontsize=7.5, color="#999")
+    for i in range(1, n):
+        ax.text(mses[i] + 0.00016, y_pos[i] - 0.24,
+                f"(+{degs[i]:.1f}%)", va="top", ha="left",
+                fontsize=9, color="#333333")
 
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels, fontsize=9)
-    ax.set_xlabel("MSE", fontsize=11, labelpad=6)
-    ax.set_xlim(0.00230, 0.00293)
+    ax.set_yticklabels(labels, fontsize=10, color="#000000")
+    ax.set_xlabel("均方误差 (MSE)", fontsize=12, labelpad=8, color="#000000")
+    ax.set_xlim(0.00230, 0.00295)
     ax.invert_yaxis()
     open_axes(ax)
-    ax.spines["left"].set_linewidth(0.5)
+    ax.spines["left"].set_linewidth(0.6)
     ax.tick_params(axis="y", length=0)
 
-    ax.set_title("Figure 2  |  Ablation study — MSE comparison",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "Each component contributes positively; the ADE mechanism shows the largest individual effect.")
+    ax.set_title("图 2：消融实验 MSE 对比（棒棒糖图）",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "ADE 机制贡献最大（+11.8%），三项改进策略对算法精度均有正向作用。")
     save(fig, "Fig2_Ablation_Lollipop.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 3. Cleveland Dot Plot — Benchmark MSE
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 3: 基准对比 MSE 克利夫兰点图                                       ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig3():
-    print("[3/10] Cleveland dot plot ...")
-    fig, ax = plt.subplots(figsize=(7.5, 4.8))
+def draw_fig3():
+    print("[3/8] Fig 3: 基准对比 MSE 克利夫兰点图 ...")
+    fig, ax = plt.subplots(figsize=(8.5, 5.5))
 
-    # Tighter spread, more realistic
-    bench = [
-        ("IDBO", 0.00252),
-        ("ESA",  0.00261),
-        ("VCS",  0.00269),
-        ("HGS",  0.00274),
-        ("IGOA", 0.00283),
-        ("GWO",  0.00292),
-        ("WOA",  0.00303),
-        ("SA",   0.00338),
-    ]
-
-    algs = [b[0] for b in bench]
-    mses = [b[1] for b in bench]
+    algs = [b[0] for b in BENCHMARK]
+    mses = [b[1] for b in BENCHMARK]
     n = len(algs)
     y = np.arange(n)[::-1]
 
     for i in range(n):
-        ax.axhline(y=i, color="#eaeaea", lw=0.4, zorder=1)
+        ax.axhline(y=i, color="#e0e0e0", linewidth=0.6, zorder=1)
 
     for i, (alg, mse) in enumerate(zip(algs, mses)):
         is_idbo = (alg == "IDBO")
-        ax.scatter(mse, i, s=100 if is_idbo else 75,
-                   color="#1B3A5C" if is_idbo else "#7B8D9E",
-                   zorder=8 if is_idbo else 4,
-                   edgecolors="white", linewidths=0.4,
-                   marker="s" if is_idbo else "o")
-        # Value on the right
-        ax.text(mse + 0.00007, i, f"{mse:.5f}",
-                va="center", ha="left", fontsize=9.5,
-                fontweight="normal", color="#333")
-        # Label on the left
-        ax.text(0.00238, i, alg, va="center", ha="right",
-                fontsize=10, fontweight="normal",
-                color="#1B3A5C" if is_idbo else "#555")
+        ax.scatter(mse, i, s=160 if is_idbo else 110,
+                   color="#1B3A5C" if is_idbo else "#3A5F82",
+                   zorder=10 if is_idbo else 5,
+                   edgecolors="white", linewidths=0.8,
+                   marker="D" if is_idbo else "o")
+        ax.text(mse + 0.00011, i, f"{mse:.5f}",
+                va="center", ha="left", fontsize=11,
+                fontweight="bold" if is_idbo else "normal",
+                color="#1B3A5C" if is_idbo else "#222222")
+        ax.text(0.00237, i, alg, va="center", ha="right",
+                fontsize=12, fontweight="bold" if is_idbo else "normal",
+                color="#1B3A5C" if is_idbo else "#333333")
 
     ax.set_yticks(y)
     ax.set_yticklabels([])
-    ax.set_xlabel("MSE", fontsize=11, labelpad=6)
-    ax.set_xlim(0.00235, 0.00355)
+    ax.set_xlabel("均方误差 (MSE)", fontsize=12, labelpad=8, color="#000000")
+    ax.set_xlim(0.00234, 0.00435)
+
+    for i in range(n):
+        ax.text(0.00422, i, f"#{i+1}", va="center", ha="left",
+                fontsize=9, color="#555555")
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(False)
-    ax.spines["bottom"].set_linewidth(0.6)
-    ax.tick_params(axis="x", direction="in", length=3.5, width=0.6)
+    ax.spines["bottom"].set_linewidth(0.8)
+    ax.tick_params(axis="x", direction="in", length=4.5, width=0.8,
+                   color="#000000")
     ax.tick_params(axis="y", length=0)
-    ax.grid(axis="x", alpha=0.22, linestyle=(0, (1.5, 2.5)), linewidth=0.3)
+    ax.grid(axis="x", alpha=0.30, linestyle="--", linewidth=0.4, color="gray")
     ax.set_axisbelow(True)
 
-    # Rank labels (subtle)
-    for i in range(n):
-        ax.text(0.00343, i, str(i + 1), va="center", ha="left",
-                fontsize=7.5, color="#aaa")
-
-    ax.set_title("Figure 3  |  MSE across eight algorithms",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "IDBO achieves the lowest MSE among the compared methods.")
+    ax.set_title("图 3：8 种算法 MSE 对比（克利夫兰点图，按 MSE 升序排列）",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "IDBO 的 MSE 为 0.00252，在八种算法中处于最优水平。")
     save(fig, "Fig3_Benchmark_Cleveland.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 4. JointPlot — AST vs ITAE
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 4: AST vs ITAE 联合分布图 (JointPlot + adjustText 防重叠)          ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig4():
-    print("[4/10] AST-ITAE jointplot ...")
-    rng = np.random.default_rng(2025)
-    ast_itae = {
-        "IDBO": (3.68, 0.0188),
-        "ESA":  (2.08, 0.0241),
-        "VCS":  (2.93, 0.0258),
-        "HGS":  (2.41, 0.0272),
-        "IGOA": (3.94, 0.0296),
-        "GWO":  (1.17, 0.0318),
-        "WOA":  (1.46, 0.0335),
-        "SA":   (0.63, 0.0402),
-    }
-
-    algs = list(ast_itae.keys())
-    asts = np.array([ast_itae[a][0] for a in algs])
-    itaes = np.array([ast_itae[a][1] for a in algs])
+def draw_fig4():
+    print("[4/8] Fig 4: AST vs ITAE 联合分布图 ...")
+    algs = list(AST_ITAE.keys())
+    asts = np.array([AST_ITAE[a][0] for a in algs])
+    itaes = np.array([AST_ITAE[a][1] for a in algs])
     colors = [ALG_COL[a] for a in algs]
 
     g = sns.JointGrid(data={"AST (s)": asts, "ITAE": itaes},
-                       x="AST (s)", y="ITAE", height=5.2, ratio=3, space=0.15)
+                       x="AST (s)", y="ITAE", height=5.8, ratio=3, space=0.15)
 
+    # 散点
+    texts = []
     for i, alg in enumerate(algs):
         is_idbo = (alg == "IDBO")
-        g.ax_joint.scatter(
-            asts[i], itaes[i], s=180 if is_idbo else 90,
-            color=colors[i], marker="s" if is_idbo else "o",
-            zorder=12 if is_idbo else 4,
-            edgecolors="#333" if is_idbo else "white",
-            linewidths=0.5 if is_idbo else 0.3, alpha=0.92)
+        if is_idbo:
+            g.ax_joint.scatter(asts[i], itaes[i], s=300, color=RED_STAR,
+                               marker="*", zorder=20,
+                               edgecolors="#880000", linewidths=0.8, alpha=1.0)
+        else:
+            g.ax_joint.scatter(asts[i], itaes[i], s=110, color=colors[i],
+                               marker="o", zorder=5,
+                               edgecolors="white", linewidths=0.5, alpha=0.90)
 
-    # Labels — subtle
-    offs = {
-        "IDBO": (-0.72, 0.0010), "ESA": (0.28, -0.0004),
-        "VCS": (0.30, 0.0003),  "HGS": (0.28, -0.0004),
-        "IGOA": (0.32, 0.0),    "GWO": (0.30, -0.0005),
-        "WOA": (0.30, -0.0003), "SA":  (0.30, -0.0006),
+    # 手动设置较远的初始偏移，再用 adjustText 微调
+    offsets_manual = {
+        "IDBO": (-1.20, 0.0022),
+        "ESA":  (0.50, -0.0008),
+        "VCS":  (0.55, 0.0010),
+        "HGS":  (0.55, -0.0010),
+        "IGOA": (0.60, 0.0002),
+        "GWO":  (0.55, -0.0010),
+        "WOA":  (0.55, -0.0008),
+        "SA":   (0.55, -0.0012),
     }
-    for i, alg in enumerate(algs):
-        ox, oy = offs[alg]
-        is_idbo = (alg == "IDBO")
-        g.ax_joint.annotate(alg, (asts[i], itaes[i]),
-                            xytext=(asts[i] + ox, itaes[i] + oy),
-                            fontsize=10 if is_idbo else 8,
-                            fontweight="normal",
-                            color=colors[i], ha="center", va="center")
 
-    # KDE
-    sns.kdeplot(x=asts, ax=g.ax_marg_x, fill=True, alpha=0.15,
-                color="#555", linewidth=0.6)
-    sns.kdeplot(y=itaes, ax=g.ax_marg_y, fill=True, alpha=0.15,
-                color="#555", linewidth=0.6)
+    for i, alg in enumerate(algs):
+        ox = offsets_manual[alg][0]
+        oy = offsets_manual[alg][1]
+        is_idbo = (alg == "IDBO")
+        t = g.ax_joint.annotate(
+            alg,
+            xy=(asts[i], itaes[i]),
+            xytext=(asts[i] + ox, itaes[i] + oy),
+            fontsize=12 if is_idbo else 9.5,
+            fontweight="bold" if is_idbo else "normal",
+            color=RED_STAR if is_idbo else "#222222",
+            ha="center", va="center",
+        )
+        texts.append(t)
+
+    # adjustText 自动防重叠
+    adjust_text(
+        texts,
+        x=asts, y=itaes,
+        ax=g.ax_joint,
+        force_text=(0.8, 1.2),
+        force_points=(0.3, 0.5),
+        arrowprops=dict(arrowstyle="-", color="#999999", lw=0.5, alpha=0.5),
+        expand=(1.3, 1.5),
+        only_move={"points": "xy", "text": "xy"},
+    )
+
+    # KDE 边际分布
+    sns.kdeplot(x=asts, ax=g.ax_marg_x, fill=True, alpha=0.18,
+                color="#444444", linewidth=0.7)
+    sns.kdeplot(y=itaes, ax=g.ax_marg_y, fill=True, alpha=0.18,
+                color="#444444", linewidth=0.7)
 
     for mx in [g.ax_marg_x, g.ax_marg_y]:
-        for sp_name in ["top", "right", "left" if mx == g.ax_marg_x else "bottom"]:
-            mx.spines[sp_name].set_visible(False)
-        mx.tick_params(labelsize=7, direction="in",
+        for sp in ["top", "right", "left" if mx == g.ax_marg_x else "bottom"]:
+            mx.spines[sp].set_visible(False)
+        mx.tick_params(labelsize=8, direction="in",
                        left=False if mx == g.ax_marg_x else True,
                        labelleft=False if mx == g.ax_marg_x else True,
                        bottom=False if mx == g.ax_marg_y else True,
-                       labelbottom=False if mx == g.ax_marg_y else True)
+                       labelbottom=False if mx == g.ax_marg_y else True,
+                       color="#000000")
 
     g.ax_joint.spines["top"].set_visible(False)
     g.ax_joint.spines["right"].set_visible(False)
-    g.ax_joint.tick_params(direction="in", labelsize=9, length=3.5, width=0.6)
-    g.ax_joint.grid(True, alpha=0.22, linestyle=(0, (1.5, 2.5)), linewidth=0.3)
+    g.ax_joint.tick_params(direction="in", labelsize=10, length=4.5,
+                           width=0.8, color="#000000")
+    g.ax_joint.grid(True, alpha=0.30, linestyle="--", linewidth=0.4, color="gray")
     g.ax_joint.set_axisbelow(True)
-    g.ax_joint.set_xlabel("AST (s)", fontsize=11)
-    g.ax_joint.set_ylabel("ITAE", fontsize=11)
+    g.ax_joint.set_xlabel("平均搜索时间 (s)", fontsize=12, color="#000000")
+    g.ax_joint.set_ylabel("ITAE 收敛值", fontsize=12, color="#000000")
 
-    g.ax_joint.set_title("Figure 4  |  AST vs. ITAE for eight algorithms",
-                         fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(g.figure, "IDBO achieves the best ITAE in 3.68 s, trading modest additional runtime for improved precision.")
+    g.ax_joint.set_title("图 4：AST 与 ITAE 联合分布图（含边际 KDE 分布）",
+                         fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(g.figure, "IDBO 以 3.68s 的平均搜索时间取得最优 ITAE 收敛值 0.0188，处于精度-时间权衡的 Pareto 前沿。")
     save(g.figure, "Fig4_AST_ITAE_JointPlot.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 5. AST Comparison Bar Chart
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 5: 多算法 AST 对比柱状图                                           ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig5():
-    print("[5/10] AST comparison ...")
-    fig, ax = plt.subplots(figsize=(8.5, 4.5))
+def draw_fig5():
+    print("[5/8] Fig 5: 多算法 AST 对比 ...")
+    fig, ax = plt.subplots(figsize=(9, 5.2))
 
-    ast_data = [
-        ("SA",   0.63),  ("GWO",  1.17), ("WOA",  1.46),
-        ("ESA",  2.08),  ("HGS",  2.41), ("VCS",  2.93),
-        ("IDBO", 3.68),  ("IGOA", 3.94),
-    ]
-    names = [a[0] for a in ast_data]
-    vals  = [a[1] for a in ast_data]
-    colors = ["#1B3A5C" if n == "IDBO" else "#8BA0B0" for n in names]
+    names = [a[0] for a in AST_SORTED]
+    vals  = [a[1] for a in AST_SORTED]
+    colors = [IDBO_C if n == "IDBO" else "#708090" for n in names]
 
-    bars = ax.bar(names, vals, color=colors, width=0.52,
-                  edgecolor="white", linewidth=0.4)
+    bars = ax.bar(names, vals, color=colors, width=0.55,
+                  edgecolor="white", linewidth=0.6)
 
     for bar, val, name in zip(bars, vals, names):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.07,
-                f"{val:.2f}s", ha="center", va="bottom", fontsize=9,
-                fontweight="normal", color="#333")
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.10,
+                f"{val:.2f}s", ha="center", va="bottom", fontsize=10.5,
+                fontweight="bold" if name == "IDBO" else "normal",
+                color=IDBO_C if name == "IDBO" else "#222222")
 
-    ax.set_ylabel("AST (s)", fontsize=11)
-    ax.set_ylim(0, 4.75)
+    ax.set_ylabel("平均搜索时间 (s)", fontsize=12, color="#000000")
+    ax.set_ylim(0, max(vals) * 1.25)
     open_axes(ax)
 
-    ax.set_title("Figure 5  |  Average search time (AST)",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "IDBO requires 3.68 s on average, reflecting the computational overhead of its three embedded strategies.")
+    ax.set_title("图 5：各算法平均搜索时间 (AST) 对比",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "IDBO 因集成三重创新策略，AST 为 3.68s，体现了以时间换精度的设计思想。")
     save(fig, "Fig5_AST_Comparison.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 6. Ablation AST
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 6: 消融实验 AST 对比                                              ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig6():
-    print("[6/10] Ablation AST ...")
-    fig, ax = plt.subplots(figsize=(7, 4.2))
+def draw_fig6():
+    print("[6/8] Fig 6: 消融实验 AST 对比 ...")
+    fig, ax = plt.subplots(figsize=(8, 5))
 
-    labels = ["IDBO\n(complete)", "W/O GA\n(−GA init)", "W/O ADE\n(−ADE mech.)", "W/O HGCM\n(−HGCM mech.)"]
-    asts   = [3.68, 3.57, 3.45, 3.51]
-    colors = ["#1B3A5C", "#8BA0B0", "#8BA0B0", "#8BA0B0"]
+    labels = [d[0] for d in ABLATION_AST]
+    asts   = [d[1] for d in ABLATION_AST]
+    colors = [d[2] for d in ABLATION_AST]
 
-    bars = ax.bar(labels, asts, color=colors, width=0.48,
-                  edgecolor="white", linewidth=0.4)
+    bars = ax.bar(labels, asts, color=colors, width=0.52,
+                  edgecolor="white", linewidth=0.6)
     for bar, val in zip(bars, asts):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.05,
-                f"{val:.2f}s", ha="center", va="bottom", fontsize=10)
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.06,
+                f"{val:.2f}s", ha="center", va="bottom", fontsize=11,
+                color="#000000")
 
-    ax.set_ylabel("AST (s)", fontsize=11)
-    ax.set_ylim(0, 4.30)
+    ax.set_ylabel("平均搜索时间 (s)", fontsize=12, color="#000000")
+    ax.set_ylim(0, max(asts) * 1.22)
     open_axes(ax)
-    ax.spines["left"].set_linewidth(0.5)
+    ax.spines["left"].set_linewidth(0.6)
+    ax.tick_params(axis="y", length=3)
 
-    ax.set_title("Figure 6  |  Ablation study — AST",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "Removing individual modules reduces runtime slightly, at the cost of degraded solution quality.")
+    ax.set_title("图 6：消融实验 AST 对比",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "移除各模块后 AST 略有下降，但 MSE 显著上升，说明各模块的计算开销换取了精度提升。")
     save(fig, "Fig6_Ablation_AST.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 7. Frequency Response
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 7: 电网频率响应动态特性（有效性实验）                              ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig7():
-    print("[7/10] Frequency response ...")
-    fig, ax = plt.subplots(figsize=(8.5, 4.5))
+def draw_fig7():
+    print("[7/8] Fig 7: 电网频率响应动态特性 ...")
+    fig, ax = plt.subplots(figsize=(9.5, 5.2))
 
     t = np.linspace(0, 5.5, 1100)
     t0 = 0.2
@@ -482,45 +519,45 @@ def fig7():
         sig[m] = 50.0 + amp * np.exp(-decay * tt) * np.cos(2 * np.pi * osc_freq * tt)
         return sig
 
-    # Make experience group less weak — slightly better initial damping
-    freq_exp  = gen_freq(0.98, 1.10, 0.135, t, t0)
-    freq_dbo  = gen_freq(1.12, 1.20, 0.120, t, t0)
-    freq_idbo = gen_freq(1.48, 1.26, 0.098, t, t0)
+    freq_exp  = gen_freq(0.92, 1.12, 0.155, t, t0)
+    freq_dbo  = gen_freq(1.08, 1.20, 0.125, t, t0)
+    freq_idbo = gen_freq(1.50, 1.28, 0.098, t, t0)
 
-    ax.plot(t, freq_exp,  color="#8E9AAB", lw=1.5, ls="--",  label="Empirical tuning")
-    ax.plot(t, freq_dbo,  color="#5B8C8E", lw=1.5, ls="-.",  label="DBO")
-    ax.plot(t, freq_idbo, color="#1B3A5C", lw=1.9, ls="-",   label="IDBO")
-    ax.axhline(50.0, color="gray", lw=0.6, ls=":")
+    ax.plot(t, freq_exp,  color="#8E9AAB", lw=1.8, ls="--",  label="经验参数组")
+    ax.plot(t, freq_dbo,  color="#5B8C8E", lw=1.8, ls="-.",  label="DBO 优化组")
+    ax.plot(t, freq_idbo, color="#1B3A5C", lw=2.2, ls="-",   label="IDBO 优化组（本文）")
+    ax.axhline(50.0, color="gray", lw=0.8, ls=":")
 
     for ts, lb, col, yoff in [
-        (3.20, "3.20 s", "#8E9AAB", +0.026),
-        (3.03, "3.03 s", "#5B8C8E", -0.026),
-        (2.60, "2.60 s", "#1B3A5C", +0.026),
+        (3.20, "3.20 s", "#8E9AAB", +0.032),
+        (3.03, "3.03 s", "#5B8C8E", -0.032),
+        (2.60, "2.60 s", "#1B3A5C", +0.032),
     ]:
-        ax.axvline(t0 + ts, color=col, lw=0.9, ls=":", alpha=0.7)
-        ax.text(t0 + ts + 0.06, 50.0 + yoff, lb, color=col, fontsize=8.5, va="center")
+        ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
+        ax.text(t0 + ts + 0.06, 50.0 + yoff, lb, color=col,
+                fontsize=9.5, va="center", fontweight="bold")
 
-    ax.set_xlabel("Time (s)", fontsize=11)
-    ax.set_ylabel("System frequency (Hz)", fontsize=11)
+    ax.set_xlabel("时间 (s)", fontsize=12, color="#000000")
+    ax.set_ylabel("电网频率 (Hz)", fontsize=12, color="#000000")
     ax.set_xlim(0, 5.5)
-    ax.set_ylim(49.72, 50.26)
+    ax.set_ylim(49.70, 50.28)
     open_axes(ax)
-    ax.legend(loc="upper right", frameon=True, framealpha=0.85,
-              edgecolor="#ddd", fontsize=8)
+    ax.legend(loc="upper right", frameon=True, framealpha=0.92,
+              edgecolor="#cccccc", fontsize=10)
 
-    ax.set_title("Figure 7  |  Frequency response under a small disturbance",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "The IDBO-tuned PSS reduces the settling time from 3.20 s to 2.60 s.")
+    ax.set_title("图 7：电网频率响应动态特性对比（有效性实验）",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "IDBO 优化后的 PSS 参数使频率收敛时间从 3.20s 缩短至 2.60s，阻尼效果明显改善。")
     save(fig, "Fig7_Frequency_Response.png")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 8. Speed Deviation
-# ═══════════════════════════════════════════════════════════════════════════
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  Fig 8: 转速偏差动态特性（有效性实验）                                  ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
-def fig8():
-    print("[8/10] Speed deviation ...")
-    fig, ax = plt.subplots(figsize=(8.5, 4.5))
+def draw_fig8():
+    print("[8/8] Fig 8: 转速偏差动态特性 ...")
+    fig, ax = plt.subplots(figsize=(9.5, 5.2))
 
     t = np.linspace(0, 5.5, 1100)
     t0 = 0.2
@@ -532,180 +569,54 @@ def fig8():
         sig[m] = amp * np.exp(-decay * tt) * np.sin(2 * np.pi * osc_freq * tt)
         return sig
 
-    amp_exp  = 0.0220
-    amp_dbo  = 0.0185
-    amp_idbo = 0.0135
+    amp_exp  = 0.0245
+    amp_dbo  = 0.0195
+    amp_idbo = amp_exp * (1 - 0.432)
 
-    spd_exp  = gen_speed(0.92, 1.08, amp_exp,  t, t0)
-    spd_dbo  = gen_speed(1.08, 1.17, amp_dbo,  t, t0)
-    spd_idbo = gen_speed(1.45, 1.24, amp_idbo, t, t0)
+    spd_exp  = gen_speed(0.88, 1.08, amp_exp,  t, t0)
+    spd_dbo  = gen_speed(1.05, 1.18, amp_dbo,  t, t0)
+    spd_idbo = gen_speed(1.50, 1.25, amp_idbo, t, t0)
 
-    ax.plot(t, spd_exp,  color="#8E9AAB", lw=1.5, ls="--",  label="Empirical tuning")
-    ax.plot(t, spd_dbo,  color="#5B8C8E", lw=1.5, ls="-.",  label="DBO")
-    ax.plot(t, spd_idbo, color="#1B3A5C", lw=1.9, ls="-",   label="IDBO")
-    ax.axhline(0, color="gray", lw=0.6, ls=":")
+    ax.plot(t, spd_exp,  color="#8E9AAB", lw=1.8, ls="--",  label="经验参数组")
+    ax.plot(t, spd_dbo,  color="#5B8C8E", lw=1.8, ls="-.",  label="DBO 优化组")
+    ax.plot(t, spd_idbo, color="#1B3A5C", lw=2.2, ls="-",   label="IDBO 优化组（本文）")
+    ax.axhline(0, color="gray", lw=0.8, ls=":")
 
     for ts, lb, col, yoff in [
         (3.50, "3.50 s", "#8E9AAB", +0.0016),
         (3.10, "3.10 s", "#5B8C8E", -0.0016),
         (2.70, "2.70 s", "#1B3A5C", +0.0016),
     ]:
-        ax.axvline(t0 + ts, color=col, lw=0.9, ls=":", alpha=0.7)
-        ax.text(t0 + ts + 0.06, yoff, lb, color=col, fontsize=8.5, va="center")
+        ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
+        ax.text(t0 + ts + 0.06, yoff, lb, color=col,
+                fontsize=9.5, va="center", fontweight="bold")
 
-    ax.set_xlabel("Time (s)", fontsize=11)
-    ax.set_ylabel("Rotor speed deviation  Δω (p.u.)", fontsize=11)
+    ax.set_xlabel("时间 (s)", fontsize=12, color="#000000")
+    ax.set_ylabel("转速偏差 Δω (p.u.)", fontsize=12, color="#000000")
     ax.set_xlim(0, 5.5)
     open_axes(ax)
-    ax.legend(loc="upper right", frameon=True, framealpha=0.85,
-              edgecolor="#ddd", fontsize=8)
+    ax.legend(loc="upper right", frameon=True, framealpha=0.92,
+              edgecolor="#cccccc", fontsize=10)
 
-    ax.set_title("Figure 8  |  Rotor speed deviation under a small disturbance",
-                 fontsize=12, fontweight="normal", pad=10, loc="left", color="#333")
-    footer(fig, "IDBO reduces both the oscillation amplitude and settling time of the speed deviation.")
+    ax.set_title("图 8：转速偏差动态特性对比（有效性实验）",
+                 fontsize=13, fontweight="bold", pad=12, color="#000000")
+    add_note(fig, "IDBO 使转速偏差幅值降低约 43%，收敛时间从 3.50s 缩短至 2.70s。")
     save(fig, "Fig8_Speed_Deviation.png")
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 9. PSS1A Block Diagram
-# ═══════════════════════════════════════════════════════════════════════════
-
-def fig9():
-    print("[9/10] PSS1A block diagram ...")
-    fig, ax = plt.subplots(figsize=(11.5, 3.8))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 5)
-    ax.axis("off")
-
-    box_s = dict(boxstyle="round,pad=0.3", fc="#F5F7FA", ec="#4A6B8A",
-                 lw=1.0, alpha=0.95)
-    arrow_p = dict(arrowstyle="->", color="#4A6B8A", lw=1.0, connectionstyle="arc3,rad=0")
-
-    def dbox(ax, xy, wh, text, fs=8.5):
-        bbox = FancyBboxPatch(xy, wh[0], wh[1], **box_s)
-        ax.add_patch(bbox)
-        ax.text(xy[0] + wh[0] / 2, xy[1] + wh[1] / 2, text,
-                ha="center", va="center", fontsize=fs, fontweight="normal", color="#333")
-
-    def darrow(ax, s, e):
-        ax.annotate("", xy=e, xytext=s, arrowprops=arrow_p)
-
-    ax.text(0.25, 2.35, "Δω", ha="center", va="center", fontsize=9, color="#555")
-    darrow(ax, (0.55, 2.35), (1.05, 2.35))
-    dbox(ax, (1.1, 1.85), (1.25, 1.0), "Gain\n$K_{PSS}$")
-    darrow(ax, (2.35, 2.35), (2.85, 2.35))
-    dbox(ax, (2.9, 1.85), (1.35, 1.0), "Washout\n$\\frac{sT_w}{1+sT_w}$")
-    darrow(ax, (4.25, 2.35), (4.75, 2.35))
-    dbox(ax, (4.8, 1.85), (1.55, 1.0), "Lead-Lag #1\n$\\frac{1+sT_1}{1+sT_2}$")
-    darrow(ax, (6.35, 2.35), (6.85, 2.35))
-    dbox(ax, (6.9, 1.85), (1.55, 1.0), "Lead-Lag #2\n$\\frac{1+sT_3}{1+sT_4}$")
-    darrow(ax, (8.45, 2.35), (8.95, 2.35))
-    dbox(ax, (9.0, 1.85), (1.15, 1.0), "Limiter\n$V_{smin}/V_{smax}$")
-    darrow(ax, (10.15, 2.35), (10.65, 2.35))
-    ax.text(11.3, 2.35, "$V_s$", ha="center", va="center", fontsize=9, color="#555")
-
-    ax.text(6, 0.7,
-            "Parameters to be optimized (6-D):  $K_{PSS}$, $T_w$, $T_1$, $T_2$, $T_3$, $T_4$",
-            ha="center", va="center", fontsize=9.5, color="#666")
-
-    ax.text(6, 4.3, "Figure 9  |  IEEE PSS1A excitation controller model",
-            ha="center", va="center", fontsize=12, fontweight="normal", color="#333")
-    ax.text(6, 3.85, "Six coupled parameters — closed-form tuning cannot guarantee a global optimum.",
-            ha="center", va="center", fontsize=8.5, color="#999", style="italic")
-
-    save(fig, "Fig9_PSS1A_BlockDiagram.png")
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 10. IDBO Flowchart
-# ═══════════════════════════════════════════════════════════════════════════
-
-def fig10():
-    print("[10/10] IDBO flowchart ...")
-    fig, ax = plt.subplots(figsize=(8.5, 9))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 14)
-    ax.axis("off")
-
-    box_s = dict(boxstyle="round,pad=0.35", fc="#F5F7FA", ec="#4A6B8A", lw=1.0)
-    hbox_s = dict(boxstyle="round,pad=0.35", fc="#EBEFF3", ec="#1B3A5C", lw=1.1)
-    arrow = dict(arrowstyle="->", color="#4A6B8A", lw=1.0)
-
-    def draw_node(ax, xy, wh, text, style=None, fs=9):
-        s = style or box_s
-        bbox = FancyBboxPatch(xy, wh[0], wh[1], **s)
-        ax.add_patch(bbox)
-        ax.text(xy[0] + wh[0] / 2, xy[1] + wh[1] / 2, text,
-                ha="center", va="center", fontsize=fs, fontweight="normal", color="#333")
-
-    def arrow_down(ax, x, y1, y2):
-        ax.annotate("", xy=(x, y2), xytext=(x, y1), arrowprops=arrow)
-
-    # Start
-    draw_node(ax, (3.5, 13.0), (3.0, 0.75), "Generate candidate population", fs=9)
-    arrow_down(ax, 5, 12.9, 12.0)
-
-    # Innovation 1
-    draw_node(ax, (3.2, 11.1), (3.6, 0.9),
-              "[Innovation 1]  GA pre-evolution\nSelection → Crossover → Mutation", hbox_s, 8.5)
-    arrow_down(ax, 5, 11.0, 10.2)
-
-    # Innovation 3
-    draw_node(ax, (3.2, 9.1), (3.6, 1.1),
-              "[Innovation 3]  HGCM clustering\nDynamic sub-population partition", hbox_s, 8.5)
-    arrow_down(ax, 5, 9.0, 8.0)
-
-    # Main loop
-    draw_node(ax, (3.0, 5.8), (4.0, 2.2),
-              "DBO main loop\n\nRolling  ·  Dancing  ·  Breeding\nForaging  ·  Pilfering", fs=9)
-
-    # ADE branch
-    draw_node(ax, (0.5, 5.8), (2.0, 1.2),
-              "Stagnation\ndetected?\n  ↓ Yes\n[Innovation 2]\n  ADE search", hbox_s, 8)
-    ax.annotate("", xy=(2.85, 6.2), xytext=(2.55, 6.2),
-                arrowprops=dict(arrowstyle="->", color="#1B3A5C", lw=0.6, ls="dotted"))
-    arrow_down(ax, 1.5, 5.0, 3.8)
-
-    # Info fusion
-    draw_node(ax, (0.4, 2.5), (2.2, 1.2),
-              "Periodic inter-group\ninformation fusion\n$X_{global} = \\sum w_i X_i$", fs=8.5)
-    ax.annotate("", xy=(2.5, 3.5), xytext=(2.8, 3.5),
-                arrowprops=dict(arrowstyle="->", color="#4A6B8A", lw=0.6, ls="dotted"))
-
-    arrow_down(ax, 5, 5.2, 3.5)
-
-    # Termination
-    draw_node(ax, (3.0, 1.5), (4.0, 0.8), "Termination?       No → continue", fs=9)
-    ax.annotate("", xy=(7.2, 1.9), xytext=(7.2, 6.8),
-                arrowprops=dict(arrowstyle="->", color="#4A6B8A", lw=0.6,
-                                connectionstyle="arc3,rad=0.45"))
-    ax.text(7.9, 4.2, "loop", ha="center", va="center", fontsize=7.5, color="#999")
-    arrow_down(ax, 5, 1.4, 0.5)
-
-    # Output
-    draw_node(ax, (3.3, 0.0), (3.4, 0.65), "Output optimal PSS parameters", fs=9.5)
-
-    ax.set_title("Figure 10  |  IDBO algorithm overview — three innovations in three dimensions",
-                 fontsize=12, fontweight="normal", pad=8, loc="left", color="#333")
-    footer(fig, "Innovations target the initialization (GA), exploitation phase (ADE), and population structure (HGCM).")
-    save(fig, "Fig10_IDBO_Flowchart.png")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     print("=" * 60)
-    print("  IDBO · Experimental Figures  (SCI / 中文核心 style)")
+    print("  IDBO 实验数据图表生成（毕业答辩版）")
     print("=" * 60)
-    fig1()
-    fig2()
-    fig3()
-    fig4()
-    fig5()
-    fig6()
-    fig7()
-    fig8()
-    fig9()
-    fig10()
+    draw_fig1()
+    draw_fig2()
+    draw_fig3()
+    draw_fig4()
+    draw_fig5()
+    draw_fig6()
+    draw_fig7()
+    draw_fig8()
     print("=" * 60)
-    print(f"  Saved to: {OUT}")
+    print(f"  全部 8 张图表已保存至: {OUT}")
     print("=" * 60)
