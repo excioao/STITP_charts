@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-IDBO 算法数据图表生成脚本（毕业答辩版）
-生成 Fig 1 – Fig 8，600 DPI PNG，中文界面，高对比度黑色文字。
+IDBO 算法数据图表生成脚本（答辩版 v4）
+修正：高区分度配色、内嵌图布局、克利夫兰点图Y轴标签、联合分布图标注偏移
 """
 
 import numpy as np
@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.patches import Ellipse
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
-from adjustText import adjust_text
 import seaborn as sns
 import os
 import warnings
@@ -51,16 +50,35 @@ plt.rcParams.update({
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "charts")
 os.makedirs(OUT, exist_ok=True)
 
-# ── 配色 (克制的学术风格) ────────────────────────────────────────────────
-IDBO_C  = "#1B3A5C"     # 深海军蓝
-RED_STAR = "#C00000"     # Fig4 IDBO 红色星标
+# ── [修复 Bug 1] 高区分度配色方案 ────────────────────────────────────────
+IDBO_RED = "#C00000"          # IDBO 纯红色实线
 
+# 7 种对比算法：完全不同的颜色 + 不同线型
 ALG8 = ["IDBO", "ESA", "VCS", "HGS", "IGOA", "GWO", "WOA", "SA"]
+
 ALG_COL = {
-    "IDBO": "#1B3A5C",  "ESA":  "#2E5A70",  "VCS":  "#3D6E7E",
-    "HGS":  "#527D8A",  "IGOA": "#648793",  "GWO":  "#7A959E",
-    "WOA":  "#8EA2A7",  "SA":   "#A0AFB0",
+    "IDBO": "#C00000",   # 纯红
+    "ESA":  "#E67E22",   # 橙色
+    "VCS":  "#27AE60",   # 绿色
+    "HGS":  "#8E44AD",   # 紫色
+    "IGOA": "#8B4513",   # 棕色
+    "GWO":  "#7F8C8D",   # 灰色
+    "WOA":  "#E91E90",   # 粉色
+    "SA":   "#16A085",   # 青色
 }
+
+# 线型对照表（用于 Fig 1 / Fig 7 / Fig 8）
+ALG_LS = {
+    "IDBO": "-",    # 实线
+    "ESA":  "--",   # 虚线
+    "VCS":  "-.",   # 点划线
+    "HGS":  ":",
+    "IGOA": "--",
+    "GWO":  "-.",
+    "WOA":  ":",
+    "SA":   "--",
+}
+
 ALG_MRK = {
     "IDBO": "s", "ESA": "o", "VCS": "^", "HGS": "D",
     "IGOA": "v", "GWO": "p", "WOA": "h", "SA": "X",
@@ -74,10 +92,10 @@ DATA_ITAE = {
 }
 
 ABLATION = [
-    ("IDBO\n(完整)",            0.00252, 0.0,  "#1B3A5C"),
-    ("W/O GA\n(移除GA初始化)",  0.00272, 8.2,  "#527D8A"),
-    ("W/O ADE\n(移除ADE机制)",  0.00282, 11.8, "#527D8A"),
-    ("W/O HGCM\n(移除HGCM机制)", 0.00268, 6.4,  "#527D8A"),
+    ("IDBO\n(完整)",            0.00252, 0.0,  "#C00000"),
+    ("W/O GA\n(移除GA初始化)",  0.00272, 8.2,  "#E67E22"),
+    ("W/O ADE\n(移除ADE机制)",  0.00282, 11.8, "#E67E22"),
+    ("W/O HGCM\n(移除HGCM机制)", 0.00268, 6.4,  "#E67E22"),
 ]
 
 BENCHMARK = [
@@ -99,16 +117,15 @@ AST_SORTED = [
 ]
 
 ABLATION_AST = [
-    ("IDBO\n(完整)",            3.68, "#1B3A5C"),
-    ("W/O GA\n(移除GA初始化)",  3.55, "#527D8A"),
-    ("W/O ADE\n(移除ADE机制)",  3.48, "#527D8A"),
-    ("W/O HGCM\n(移除HGCM机制)", 3.52, "#527D8A"),
+    ("IDBO\n(完整)",            3.68, "#C00000"),
+    ("W/O GA\n(移除GA初始化)",  3.55, "#E67E22"),
+    ("W/O ADE\n(移除ADE机制)",  3.48, "#E67E22"),
+    ("W/O HGCM\n(移除HGCM机制)", 3.52, "#E67E22"),
 ]
 
 
 # ── 辅助 ─────────────────────────────────────────────────────────────────
 def open_axes(ax):
-    """开放式坐标轴：去上/右脊线，刻度向内"""
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_linewidth(0.8)
@@ -120,7 +137,6 @@ def open_axes(ax):
 
 
 def add_note(fig, text):
-    """图表底部注释"""
     fig.text(0.5, 0.004, text, ha="center", fontsize=8.5,
              color="#000000", style="italic")
 
@@ -132,7 +148,6 @@ def save(fig, name):
 
 
 def gen_curve(final_val, converge_iter, n_iters=100, seed=42, is_idbo=False):
-    """生成带有真实感随机扰动的收敛曲线"""
     rng = np.random.default_rng(seed)
     x = np.arange(1, n_iters + 1, dtype=float)
     init = final_val * rng.uniform(3.6, 5.8)
@@ -140,7 +155,6 @@ def gen_curve(final_val, converge_iter, n_iters=100, seed=42, is_idbo=False):
     y = (init - final_val) * np.exp(-x / tau) + final_val
 
     if is_idbo:
-        # ADE 二次下降 — 细微效果
         bump = -0.0015 * np.exp(-((x - 58) ** 2) / 80)
         y = y + bump * (1 - x / n_iters * 0.3)
         refine = (final_val * 1.35 - final_val) * np.exp(-x * 0.013) * (
@@ -186,15 +200,15 @@ def draw_fig1():
 
     order = ["SA", "WOA", "GWO", "IGOA", "HGS", "VCS", "ESA", "IDBO"]
     for alg in order:
-        lw = 2.0 if alg == "IDBO" else 1.3
-        alpha = 1.0 if alg == "IDBO" else 0.80
+        lw = 2.5 if alg == "IDBO" else 1.5
+        alpha = 1.0 if alg == "IDBO" else 0.85
         z = 10 if alg == "IDBO" else 3
-        ax.plot(x, curves[alg], color=ALG_COL[alg], linewidth=lw,
+        ax.plot(x, curves[alg], color=ALG_COL[alg],
+                linestyle=ALG_LS[alg], linewidth=lw,
                 alpha=alpha, label=alg, zorder=z)
 
-    # 虚线椭圆标注 IDBO 后期持续下降区
     ell = Ellipse((72, 0.0212), width=22, height=0.009, angle=0,
-                  fc="none", ec=IDBO_C, lw=0.8, ls=(0, (3, 4)), alpha=0.55)
+                  fc="none", ec=IDBO_RED, lw=0.8, ls=(0, (3, 4)), alpha=0.55)
     ax.add_patch(ell)
 
     ax.set_xlabel("迭代次数", fontsize=12, color="#000000")
@@ -204,30 +218,31 @@ def draw_fig1():
     open_axes(ax)
 
     legend = ax.legend(loc="upper right", ncol=4, frameon=True,
-                       framealpha=0.92, edgecolor="#cccccc", fontsize=9,
-                       columnspacing=0.8, handlelength=1.5, handletextpad=0.5)
+                       framealpha=0.95, edgecolor="#cccccc", fontsize=9,
+                       columnspacing=0.8, handlelength=2.0, handletextpad=0.5)
 
-    # ── 内嵌放大: 55–85 ──
+    # ── [修复 Bug 2] 内嵌放大图：移除 Y 轴标签，移至右上角 ──
     ax_in = inset_axes(ax, width="38%", height="36%",
-                       bbox_to_anchor=(0.22, 0.20, 0.74, 0.74),
+                       bbox_to_anchor=(0.55, 0.55, 0.42, 0.42),
                        bbox_transform=ax.transAxes, borderpad=0)
     for alg in order:
-        lw = 1.8 if alg == "IDBO" else 0.9
+        lw = 2.0 if alg == "IDBO" else 0.9
         a = 1.0 if alg == "IDBO" else 0.65
         ax_in.plot(x[54:85], curves[alg][54:85],
-                   color=ALG_COL[alg], linewidth=lw, alpha=a)
+                   color=ALG_COL[alg], linestyle=ALG_LS[alg],
+                   linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
     ax_in.set_ylim(0.0175, 0.0305)
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
-    ax_in.set_ylabel("ITAE", fontsize=8, labelpad=3, color="#000000")
+    ax_in.set_ylabel("")   # ← 完全移除 Y 轴标签，防止裁剪
     ax_in.tick_params(labelsize=7, direction="in", length=2.5, width=0.6,
                       pad=2, color="#000000")
     ax_in.spines["top"].set_visible(False)
     ax_in.spines["right"].set_visible(False)
     ax_in.grid(True, alpha=0.25, linestyle="--", linewidth=0.3, color="gray")
     ax_in.set_axisbelow(True)
-    mark_inset(ax, ax_in, loc1=2, loc2=3, fc="none", ec="#888888",
+    mark_inset(ax, ax_in, loc1=2, loc2=4, fc="none", ec="#888888",
                lw=0.6, alpha=0.6)
 
     ax.set_title("图 1：8 种算法 ITAE 收敛曲线（含 55–85 迭代局部放大）",
@@ -305,20 +320,18 @@ def draw_fig3():
     for i, (alg, mse) in enumerate(zip(algs, mses)):
         is_idbo = (alg == "IDBO")
         ax.scatter(mse, i, s=160 if is_idbo else 110,
-                   color="#1B3A5C" if is_idbo else "#3A5F82",
-                   zorder=10 if is_idbo else 5,
+                   color=ALG_COL[alg], zorder=10 if is_idbo else 5,
                    edgecolors="white", linewidths=0.8,
                    marker="D" if is_idbo else "o")
         ax.text(mse + 0.00011, i, f"{mse:.5f}",
                 va="center", ha="left", fontsize=11,
                 fontweight="bold" if is_idbo else "normal",
-                color="#1B3A5C" if is_idbo else "#222222")
-        ax.text(0.00237, i, alg, va="center", ha="right",
-                fontsize=12, fontweight="bold" if is_idbo else "normal",
-                color="#1B3A5C" if is_idbo else "#333333")
+                color=ALG_COL[alg] if is_idbo else "#222222")
 
-    ax.set_yticks(y)
-    ax.set_yticklabels([])
+    # ── [修复 Bug 3] 显式设置 Y 轴刻度和标签 ──
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(algs, fontsize=12, color="#000000")
+
     ax.set_xlabel("均方误差 (MSE)", fontsize=12, labelpad=8, color="#000000")
     ax.set_xlim(0.00234, 0.00435)
 
@@ -343,7 +356,7 @@ def draw_fig3():
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
-# ║  Fig 4: AST vs ITAE 联合分布图 (JointPlot + adjustText 防重叠)          ║
+# ║  Fig 4: AST vs ITAE 联合分布图                                          ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 def draw_fig4():
@@ -351,62 +364,47 @@ def draw_fig4():
     algs = list(AST_ITAE.keys())
     asts = np.array([AST_ITAE[a][0] for a in algs])
     itaes = np.array([AST_ITAE[a][1] for a in algs])
-    colors = [ALG_COL[a] for a in algs]
 
     g = sns.JointGrid(data={"AST (s)": asts, "ITAE": itaes},
                        x="AST (s)", y="ITAE", height=5.8, ratio=3, space=0.15)
 
     # 散点
-    texts = []
     for i, alg in enumerate(algs):
         is_idbo = (alg == "IDBO")
         if is_idbo:
-            g.ax_joint.scatter(asts[i], itaes[i], s=300, color=RED_STAR,
+            g.ax_joint.scatter(asts[i], itaes[i], s=300, color="#C00000",
                                marker="*", zorder=20,
                                edgecolors="#880000", linewidths=0.8, alpha=1.0)
         else:
-            g.ax_joint.scatter(asts[i], itaes[i], s=110, color=colors[i],
+            g.ax_joint.scatter(asts[i], itaes[i], s=110, color=ALG_COL[alg],
                                marker="o", zorder=5,
                                edgecolors="white", linewidths=0.5, alpha=0.90)
 
-    # 手动设置较远的初始偏移，再用 adjustText 微调
-    offsets_manual = {
-        "IDBO": (-1.20, 0.0022),
-        "ESA":  (0.50, -0.0008),
-        "VCS":  (0.55, 0.0010),
-        "HGS":  (0.55, -0.0010),
-        "IGOA": (0.60, 0.0002),
-        "GWO":  (0.55, -0.0010),
-        "WOA":  (0.55, -0.0008),
-        "SA":   (0.55, -0.0012),
+    # ── [修复 Bug 4] 使用确切偏移字典，硬编码避免重叠 ──
+    offsets = {
+        "SA":    (-25, 5),
+        "GWO":   (-30, -5),
+        "WOA":   (10, 10),
+        "ESA":   (-25, -15),
+        "HGS":   (-5, 15),
+        "VCS":   (15, -10),
+        "IGOA":  (15, 0),
+        "IDBO":  (15, -20),
     }
 
     for i, alg in enumerate(algs):
-        ox = offsets_manual[alg][0]
-        oy = offsets_manual[alg][1]
+        ox, oy = offsets[alg]
         is_idbo = (alg == "IDBO")
-        t = g.ax_joint.annotate(
+        g.ax_joint.annotate(
             alg,
-            xy=(asts[i], itaes[i]),
-            xytext=(asts[i] + ox, itaes[i] + oy),
+            (asts[i], itaes[i]),
+            xytext=(ox, oy),
+            textcoords="offset points",
             fontsize=12 if is_idbo else 9.5,
             fontweight="bold" if is_idbo else "normal",
-            color=RED_STAR if is_idbo else "#222222",
+            color="#C00000" if is_idbo else ALG_COL[alg],
             ha="center", va="center",
         )
-        texts.append(t)
-
-    # adjustText 自动防重叠
-    adjust_text(
-        texts,
-        x=asts, y=itaes,
-        ax=g.ax_joint,
-        force_text=(0.8, 1.2),
-        force_points=(0.3, 0.5),
-        arrowprops=dict(arrowstyle="-", color="#999999", lw=0.5, alpha=0.5),
-        expand=(1.3, 1.5),
-        only_move={"points": "xy", "text": "xy"},
-    )
 
     # KDE 边际分布
     sns.kdeplot(x=asts, ax=g.ax_marg_x, fill=True, alpha=0.18,
@@ -435,7 +433,7 @@ def draw_fig4():
 
     g.ax_joint.set_title("图 4：AST 与 ITAE 联合分布图（含边际 KDE 分布）",
                          fontsize=13, fontweight="bold", pad=12, color="#000000")
-    add_note(g.figure, "IDBO 以 3.68s 的平均搜索时间取得最优 ITAE 收敛值 0.0188，处于精度-时间权衡的 Pareto 前沿。")
+    add_note(g.figure, "IDBO 以 3.68s 的平均搜索时间取得最优 ITAE 收敛值 0.0188。")
     save(g.figure, "Fig4_AST_ITAE_JointPlot.png")
 
 
@@ -449,7 +447,7 @@ def draw_fig5():
 
     names = [a[0] for a in AST_SORTED]
     vals  = [a[1] for a in AST_SORTED]
-    colors = [IDBO_C if n == "IDBO" else "#708090" for n in names]
+    colors = [ALG_COL[n] for n in names]
 
     bars = ax.bar(names, vals, color=colors, width=0.55,
                   edgecolor="white", linewidth=0.6)
@@ -458,7 +456,7 @@ def draw_fig5():
         ax.text(bar.get_x() + bar.get_width() / 2, val + 0.10,
                 f"{val:.2f}s", ha="center", va="bottom", fontsize=10.5,
                 fontweight="bold" if name == "IDBO" else "normal",
-                color=IDBO_C if name == "IDBO" else "#222222")
+                color="#000000")
 
     ax.set_ylabel("平均搜索时间 (s)", fontsize=12, color="#000000")
     ax.set_ylim(0, max(vals) * 1.25)
@@ -523,15 +521,16 @@ def draw_fig7():
     freq_dbo  = gen_freq(1.08, 1.20, 0.125, t, t0)
     freq_idbo = gen_freq(1.50, 1.28, 0.098, t, t0)
 
-    ax.plot(t, freq_exp,  color="#8E9AAB", lw=1.8, ls="--",  label="经验参数组")
-    ax.plot(t, freq_dbo,  color="#5B8C8E", lw=1.8, ls="-.",  label="DBO 优化组")
-    ax.plot(t, freq_idbo, color="#1B3A5C", lw=2.2, ls="-",   label="IDBO 优化组（本文）")
+    # [Bug 1 修复] 使用高区分度颜色 + 不同线型
+    ax.plot(t, freq_exp,  color="#8B4513", lw=1.8, ls="--",  label="经验参数组")
+    ax.plot(t, freq_dbo,  color="#27AE60", lw=1.8, ls="-.",  label="DBO 优化组")
+    ax.plot(t, freq_idbo, color="#C00000", lw=2.5, ls="-",   label="IDBO 优化组（本文）")
     ax.axhline(50.0, color="gray", lw=0.8, ls=":")
 
     for ts, lb, col, yoff in [
-        (3.20, "3.20 s", "#8E9AAB", +0.032),
-        (3.03, "3.03 s", "#5B8C8E", -0.032),
-        (2.60, "2.60 s", "#1B3A5C", +0.032),
+        (3.20, "3.20 s", "#8B4513", +0.032),
+        (3.03, "3.03 s", "#27AE60", -0.032),
+        (2.60, "2.60 s", "#C00000", +0.032),
     ]:
         ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
         ax.text(t0 + ts + 0.06, 50.0 + yoff, lb, color=col,
@@ -542,7 +541,7 @@ def draw_fig7():
     ax.set_xlim(0, 5.5)
     ax.set_ylim(49.70, 50.28)
     open_axes(ax)
-    ax.legend(loc="upper right", frameon=True, framealpha=0.92,
+    ax.legend(loc="upper right", frameon=True, framealpha=0.95,
               edgecolor="#cccccc", fontsize=10)
 
     ax.set_title("图 7：电网频率响应动态特性对比（有效性实验）",
@@ -577,15 +576,16 @@ def draw_fig8():
     spd_dbo  = gen_speed(1.05, 1.18, amp_dbo,  t, t0)
     spd_idbo = gen_speed(1.50, 1.25, amp_idbo, t, t0)
 
-    ax.plot(t, spd_exp,  color="#8E9AAB", lw=1.8, ls="--",  label="经验参数组")
-    ax.plot(t, spd_dbo,  color="#5B8C8E", lw=1.8, ls="-.",  label="DBO 优化组")
-    ax.plot(t, spd_idbo, color="#1B3A5C", lw=2.2, ls="-",   label="IDBO 优化组（本文）")
+    # [Bug 1 修复] 使用高区分度颜色 + 不同线型
+    ax.plot(t, spd_exp,  color="#8B4513", lw=1.8, ls="--",  label="经验参数组")
+    ax.plot(t, spd_dbo,  color="#27AE60", lw=1.8, ls="-.",  label="DBO 优化组")
+    ax.plot(t, spd_idbo, color="#C00000", lw=2.5, ls="-",   label="IDBO 优化组（本文）")
     ax.axhline(0, color="gray", lw=0.8, ls=":")
 
     for ts, lb, col, yoff in [
-        (3.50, "3.50 s", "#8E9AAB", +0.0016),
-        (3.10, "3.10 s", "#5B8C8E", -0.0016),
-        (2.70, "2.70 s", "#1B3A5C", +0.0016),
+        (3.50, "3.50 s", "#8B4513", +0.0016),
+        (3.10, "3.10 s", "#27AE60", -0.0016),
+        (2.70, "2.70 s", "#C00000", +0.0016),
     ]:
         ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
         ax.text(t0 + ts + 0.06, yoff, lb, color=col,
@@ -595,7 +595,7 @@ def draw_fig8():
     ax.set_ylabel("转速偏差 Δω (p.u.)", fontsize=12, color="#000000")
     ax.set_xlim(0, 5.5)
     open_axes(ax)
-    ax.legend(loc="upper right", frameon=True, framealpha=0.92,
+    ax.legend(loc="upper right", frameon=True, framealpha=0.95,
               edgecolor="#cccccc", fontsize=10)
 
     ax.set_title("图 8：转速偏差动态特性对比（有效性实验）",
@@ -607,7 +607,7 @@ def draw_fig8():
 # ═══════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     print("=" * 60)
-    print("  IDBO 实验数据图表生成（毕业答辩版）")
+    print("  IDBO 实验数据图表生成（答辩版 v4）")
     print("=" * 60)
     draw_fig1()
     draw_fig2()
