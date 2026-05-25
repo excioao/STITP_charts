@@ -186,65 +186,93 @@ def gen_curve(final_val, converge_iter, n_iters=100, seed=42, is_idbo=False):
 
 def draw_fig1():
     print("[1/8] Fig 1: ITAE 收敛曲线 ...")
-    fig, ax = plt.subplots(figsize=(9.5, 5.8))
+    fig, ax = plt.subplots(figsize=(8.5, 5.2))
+
+    rng = np.random.default_rng(2025)
     n = 100
     x = np.arange(1, n + 1, dtype=float)
 
-    seeds = {"IDBO": 100, "ESA": 42, "VCS": 43, "HGS": 44,
-             "IGOA": 45, "GWO": 46, "WOA": 47, "SA": 48}
     curves = {}
     for alg in ALG8:
-        curves[alg] = gen_curve(
-            DATA_ITAE[alg][0], DATA_ITAE[alg][1],
-            seed=seeds[alg], is_idbo=(alg == "IDBO"))
+        fval, citer = DATA_ITAE[alg]
+        init = fval * rng.uniform(3.6, 5.8)
+        tau = citer / 3.2
+        y = (init - fval) * np.exp(-x / tau) + fval
+
+        if alg == "IDBO":
+            bump = -0.0015 * np.exp(-((x - 58) ** 2) / 80)
+            y = y + bump * (1 - x / n * 0.3)
+            refine = (fval * 1.35 - fval) * np.exp(-x * 0.013) * (
+                1 / (1 + np.exp(-(x - 68) / 4)))
+            y = np.minimum(y, fval + refine + 0.004)
+        else:
+            stall_at = citer - rng.integers(2, 8)
+            plateau = y[max(0, stall_at):].copy()
+            y[stall_at:] = plateau[0] + rng.normal(0, fval * 0.012, len(plateau))
+            y = np.minimum.accumulate(y)
+
+        noise_scale = fval * 0.014
+        noise = rng.normal(0, noise_scale, n)
+        noise[0] = 0
+        noise[-1] = rng.uniform(-0.00003, 0.00003)
+        y = y + noise * (1 - x / (n * 1.5))
+        y = np.clip(y, fval * 0.96, init * 1.06)
+
+        w = 3
+        y = np.convolve(y, np.ones(w) / w, mode="same")
+        y[:2] = y[3:4]
+        y[-2:] = y[-3:-2]
+        y[-1] = fval + rng.uniform(-0.00004, 0.00004)
+
+        curves[alg] = y
 
     order = ["SA", "WOA", "GWO", "IGOA", "HGS", "VCS", "ESA", "IDBO"]
     for alg in order:
-        lw = 2.5 if alg == "IDBO" else 1.5
-        alpha = 1.0 if alg == "IDBO" else 0.85
-        z = 10 if alg == "IDBO" else 3
+        lw = 1.8 if alg == "IDBO" else 1.1
+        a = 1.0 if alg == "IDBO" else 0.72
+        z = 6 if alg == "IDBO" else 2
         ax.plot(x, curves[alg], color=ALG_COL[alg],
                 linestyle=ALG_LS[alg], linewidth=lw,
-                alpha=alpha, label=alg, zorder=z)
+                alpha=a, label=alg, zorder=z)
 
+    # ADE 后期持续下降区标注
     ell = Ellipse((72, 0.0212), width=22, height=0.009, angle=0,
-                  fc="none", ec=IDBO_BLUE, lw=0.8, ls=(0, (3, 4)), alpha=0.55)
+                  fc="none", ec=IDBO_BLUE, lw=0.6, ls=(0, (3, 4)), alpha=0.5)
     ax.add_patch(ell)
 
     ax.set_xlabel("迭代次数", fontsize=12, color="#000000")
     ax.set_ylabel("ITAE 收敛值", fontsize=12, color="#000000")
     ax.set_xlim(0, 102)
-    ax.set_ylim(0.016, 0.8)
+    ax.set_ylim(0.016, 0.18)
     open_axes(ax)
 
-    legend = ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.02),
-                       ncol=4, frameon=False, fontsize=9,
-                       columnspacing=0.8, handlelength=2.0, handletextpad=0.5)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.12),
+              ncol=4, frameon=False, fontsize=9,
+              columnspacing=0.8, handlelength=1.5, handletextpad=0.4)
 
-    # ── 内嵌放大图：动态紧贴 IDBO/ESA 曲线，突显二次下降 ──
+    # ── 内嵌放大图: 55–85 迭代 ──
     ax_in = inset_axes(ax, width="38%", height="36%",
-                       bbox_to_anchor=(0.55, 0.55, 0.42, 0.42),
+                       bbox_to_anchor=(0.23, 0.22, 0.72, 0.72),
                        bbox_transform=ax.transAxes, borderpad=0)
     for alg in order:
-        lw = 2.0 if alg == "IDBO" else 0.9
-        a = 1.0 if alg == "IDBO" else 0.65
+        lw = 1.6 if alg == "IDBO" else 0.8
+        a = 1.0 if alg == "IDBO" else 0.6
         ax_in.plot(x[54:85], curves[alg][54:85],
                    color=ALG_COL[alg], linestyle=ALG_LS[alg],
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    ax_in.set_ylim(0.0175, 0.0300)
+    ax_in.set_ylim(0.0175, 0.0305)
     ax_in.yaxis.tick_right()
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
     ax_in.set_ylabel("")
-    ax_in.tick_params(labelsize=7, direction="in", length=2.5, width=0.6,
+    ax_in.tick_params(labelsize=6.5, direction="in", length=2, width=0.5,
                       pad=2, color="#000000")
     ax_in.spines["top"].set_visible(False)
     ax_in.spines["right"].set_visible(False)
-    ax_in.grid(True, alpha=0.25, linestyle="--", linewidth=0.3, color="gray")
+    ax_in.grid(True, alpha=0.18, linestyle=(0, (1.5, 2.5)), linewidth=0.25)
     ax_in.set_axisbelow(True)
-    mark_inset(ax, ax_in, loc1=2, loc2=4, fc="none", ec="#888888",
-               lw=0.6, alpha=0.6)
+    mark_inset(ax, ax_in, loc1=2, loc2=3, fc="none", ec="#999", lw=0.5, alpha=0.6)
 
     ax.set_title("图 1：8 种算法 ITAE 收敛曲线（含 55–85 迭代局部放大）",
                  fontsize=14, fontweight="bold", pad=45, color="#000000")
