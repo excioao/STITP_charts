@@ -221,7 +221,7 @@ def draw_fig1():
                        ncol=4, frameon=False, fontsize=9,
                        columnspacing=0.8, handlelength=2.0, handletextpad=0.5)
 
-    # ── [修复 Bug 2] 内嵌放大图：移除 Y 轴标签，移至右上角 ──
+    # ── 内嵌放大图：动态紧贴 IDBO/ESA 曲线，突显二次下降 ──
     ax_in = inset_axes(ax, width="38%", height="36%",
                        bbox_to_anchor=(0.55, 0.55, 0.42, 0.42),
                        bbox_transform=ax.transAxes, borderpad=0)
@@ -233,9 +233,13 @@ def draw_fig1():
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    ax_in.set_ylim(0.0175, 0.0305)
+    # 动态计算 Y 轴范围：以 IDBO + ESA 在第 55-85 迭代的极值为基准，紧贴曲线
+    inset_ymin = min(np.min(curves["IDBO"][54:85]), np.min(curves["ESA"][54:85]))
+    inset_ymax = max(np.max(curves["IDBO"][54:85]), np.max(curves["ESA"][54:85]))
+    inset_margin = (inset_ymax - inset_ymin) * 0.12
+    ax_in.set_ylim(inset_ymin - inset_margin, inset_ymax + inset_margin)
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
-    ax_in.set_ylabel("")   # ← 完全移除 Y 轴标签，防止裁剪
+    ax_in.set_ylabel("")   # 移除 Y 轴标签
     ax_in.tick_params(labelsize=7, direction="in", length=2.5, width=0.6,
                       pad=2, color="#000000")
     ax_in.spines["top"].set_visible(False)
