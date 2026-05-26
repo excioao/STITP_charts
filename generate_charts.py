@@ -262,7 +262,7 @@ def draw_fig1():
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    ax_in.set_ylim(0.017, 0.05)
+    ax_in.set_ylim(0.017, 0.04)
     ax_in.yaxis.tick_right()
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
     ax_in.set_ylabel("")
