@@ -251,7 +251,7 @@ def draw_fig1():
               columnspacing=0.8, handlelength=1.5, handletextpad=0.4)
 
     # ── 内嵌放大图: 55–85 迭代 ──
-    ax_in = inset_axes(ax, width="38%", height="36%",
+    ax_in = inset_axes(ax, width="38%", height="46%",
                        bbox_to_anchor=(0.23, 0.22, 0.72, 0.72),
                        bbox_transform=ax.transAxes, borderpad=0)
     for alg in order:
@@ -262,7 +262,7 @@ def draw_fig1():
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    ax_in.set_ylim(0.0175, 0.0305)
+    ax_in.set_ylim(0.017, 0.05)
     ax_in.yaxis.tick_right()
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
     ax_in.set_ylabel("")
