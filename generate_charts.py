@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # ── 中文字体 & 全局配置 ──────────────────────────────────────────────────
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Noto Sans SC"]
+plt.rcParams["font.sans-serif"] = ["Arial", "SimHei", "Microsoft YaHei", "Noto Sans SC"]
 plt.rcParams["axes.unicode_minus"] = False
 
 plt.rcParams.update({
@@ -262,7 +262,7 @@ def draw_fig1():
                    linewidth=lw, alpha=a)
 
     ax_in.set_xlim(55, 85)
-    ax_in.set_ylim(0.017, 0.04)
+    ax_in.set_ylim(0.0175, 0.0305)
     ax_in.yaxis.tick_right()
     ax_in.set_xlabel("迭代次数", fontsize=8, labelpad=3, color="#000000")
     ax_in.set_ylabel("")
@@ -272,7 +272,7 @@ def draw_fig1():
     ax_in.spines["right"].set_visible(False)
     ax_in.grid(True, alpha=0.18, linestyle=(0, (1.5, 2.5)), linewidth=0.25)
     ax_in.set_axisbelow(True)
-    mark_inset(ax, ax_in, loc1=2, loc2=3, fc="none", ec="#999", lw=0.5, alpha=0.6)
+    mark_inset(ax, ax_in, loc1=1, loc2=2, fc="none", ec="#888888", lw=0.55, alpha=0.55)
 
     ax.set_title("图 1：8 种算法 ITAE 收敛曲线（含 55–85 迭代局部放大）",
                  fontsize=14, fontweight="bold", pad=45, color="#000000")
