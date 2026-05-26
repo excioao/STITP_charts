@@ -25,7 +25,7 @@ plt.rcParams['axes.unicode_minus'] = False
 
 plt.rcParams.update({
     "font.size": 11, "axes.titlesize": 13, "axes.labelsize": 12,
-    "xtick.labelsize": 10, "ytick.labelsize": 10, "legend.fontsize": 9,
+    "xtick.labelsize": 10, "ytick.labelsize": 10, "legend.fontsize": 10,
     "text.color": "#000000", "axes.labelcolor": "#000000",
     "xtick.color": "#000000", "ytick.color": "#000000",
     "figure.dpi": 150, "savefig.dpi": 600,
@@ -35,7 +35,7 @@ plt.rcParams.update({
     "xtick.direction": "in", "ytick.direction": "in",
     "xtick.major.size": 4.5, "ytick.major.size": 4.5,
     "xtick.major.width": 0.8, "ytick.major.width": 0.8,
-    "grid.alpha": 0.30, "grid.linestyle": "--", "grid.linewidth": 0.4,
+    "grid.alpha": 0.15, "grid.linestyle": "--", "grid.linewidth": 0.4,
 })
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -64,11 +64,11 @@ ALG_ORDER = ["SA", "WOA", "GWO", "IGOA", "HGS", "VCS", "ESA", "IDBO"]
 def open_axes(ax):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_linewidth(0.8)
-    ax.spines["bottom"].set_linewidth(0.8)
+    ax.spines["left"].set_linewidth(1.2)
+    ax.spines["bottom"].set_linewidth(1.2)
     ax.tick_params(axis="both", direction="in", which="both",
                    length=4.5, width=0.8, pad=5, color="#000000")
-    ax.grid(True, alpha=0.30, linestyle="--", linewidth=0.4, color="gray")
+    ax.grid(True, axis="y", alpha=0.15, linestyle="--", linewidth=0.4, color="gray")
     ax.set_axisbelow(True)
 
 def add_note(fig, text):
@@ -117,7 +117,7 @@ def draw_fig1():
         col = ALG_COL[alg]
         lw = 2.5 if alg == "IDBO" else 1.2
         alpha = 1.0 if alg == "IDBO" else 0.60
-        z = 8 if alg == "IDBO" else 3
+        z = 10 if alg == "IDBO" else 3
         ls = ALG_LS[alg]
         ax.plot(x, curves[alg], color=col, ls=ls, lw=lw, alpha=alpha,
                 label=alg, zorder=z)
@@ -132,8 +132,8 @@ def draw_fig1():
     ax.set_xlabel("迭代次数", fontsize=12, labelpad=8)
     ax.set_ylabel("ITAE 值", fontsize=12, labelpad=8)
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.12),
-              ncol=4, frameon=False, fontsize=9.5,
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
+              ncol=4, frameon=False, fontsize=10,
               columnspacing=0.8, handlelength=1.6, handletextpad=0.4)
 
     # ── 内嵌放大图: X=[55,85], Y 动态计算 ──
@@ -166,7 +166,8 @@ def draw_fig1():
     ax_in.spines["bottom"].set_linewidth(0.6)
     ax_in.grid(True, alpha=0.18, linestyle=(0, (1.5, 2.5)), linewidth=0.25)
     ax_in.set_axisbelow(True)
-    mark_inset(ax, ax_in, loc1=1, loc2=2, fc="none", ec="#999", lw=0.55, alpha=0.55)
+    mark_inset(ax, ax_in, loc1=1, loc2=2, fc="none", ec="gray",
+               lw=0.8, alpha=0.30, ls=":")
 
     ax.set_title("图 1：8 种算法 ITAE 收敛曲线（含 55–85 迭代局部放大）",
                  fontsize=14, fontweight="bold", pad=48)
@@ -187,16 +188,20 @@ def draw_fig2():
     vals  = [summary[a]["Final_ITAE"] for a in names]
     colors = [IDBO_RED if a == "IDBO" else GRAY for a in names]
 
-    bars = ax.bar(names, vals, color=colors, width=0.55, edgecolor="white", linewidth=0.6)
+    bars = ax.bar(names, vals, color=colors, width=0.55, edgecolor="white", linewidth=0.6,
+                  zorder=3)
     for bar, val, a in zip(bars, vals, names):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + (max(vals)-min(vals))*0.02,
-                f"{val:.4f}", ha="center", va="bottom", fontsize=10,
-                fontweight="bold" if a == "IDBO" else "normal", color="#000000")
+        ax.annotate(f"{val:.4f}",
+                    xy=(bar.get_x() + bar.get_width() / 2, val),
+                    xytext=(0, 3), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=10,
+                    fontweight="bold" if a == "IDBO" else "normal", color="#000000")
 
     y_lo = min(vals) * 0.9999; y_hi = max(vals) * 1.008
     ax.set_ylim(y_lo, y_hi)
     ax.set_ylabel("ITAE 值", fontsize=12, labelpad=8)
     open_axes(ax)
+    ax.tick_params(axis="x", bottom=False)
     ax.set_title("图 2：各算法最终 ITAE 对比", fontsize=13, fontweight="bold", pad=12)
     add_note(fig, "IDBO 最终 ITAE 为 0.0789，与最优算法 WOA 并列第一。")
     save(fig, "Fig2_ITAE_Bar.png")
@@ -214,15 +219,19 @@ def draw_fig3():
     vals  = [summary[a]["AST_s"] for a in sorted_algs]
     colors = [IDBO_RED if a == "IDBO" else GRAY for a in sorted_algs]
 
-    bars = ax.bar(sorted_algs, vals, color=colors, width=0.55, edgecolor="white", linewidth=0.6)
+    bars = ax.bar(sorted_algs, vals, color=colors, width=0.55, edgecolor="white", linewidth=0.6,
+                  zorder=3)
     for bar, val, a in zip(bars, vals, sorted_algs):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + max(vals)*0.02,
-                f"{val:.1f}s", ha="center", va="bottom", fontsize=10,
-                fontweight="bold" if a == "IDBO" else "normal", color="#000000")
+        ax.annotate(f"{val:.1f}s",
+                    xy=(bar.get_x() + bar.get_width() / 2, val),
+                    xytext=(0, 3), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=10,
+                    fontweight="bold" if a == "IDBO" else "normal", color="#000000")
 
     ax.set_ylim(0, max(vals) * 1.18)
     ax.set_ylabel("平均搜索时间 (s)", fontsize=12, labelpad=8)
     open_axes(ax)
+    ax.tick_params(axis="x", bottom=False)
     ax.set_title("图 3：各算法平均搜索时间 (AST) 对比", fontsize=13, fontweight="bold", pad=12)
     add_note(fig, f"IDBO 的 AST={summary['IDBO']['AST_s']:.1f}s（最高），体现三重策略的计算开销。")
     save(fig, "Fig3_AST_Bar.png")
@@ -263,9 +272,11 @@ def draw_fig4():
 
     for i in range(n):
         lbl = f"{mses[i]:.4f}" if i == 0 else f"{mses[i]:.4f} (+{degs[i]:.1f}%)"
-        ax.text(mses[i] + (mses[-1]-mses[0])*0.03, y_pos[i], lbl,
-                va="center", ha="left", fontsize=11,
-                fontweight="bold" if i == 0 else "normal", color="#000000")
+        ax.annotate(lbl,
+                    xy=(mses[i], y_pos[i]),
+                    xytext=(6, 0), textcoords="offset points",
+                    va="center", ha="left", fontsize=11,
+                    fontweight="bold" if i == 0 else "normal", color="#000000")
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(labels, fontsize=10)
@@ -274,7 +285,7 @@ def draw_fig4():
     ax.invert_yaxis()
     open_axes(ax)
     ax.spines["left"].set_linewidth(0.6)
-    ax.tick_params(axis="y", length=0)
+    ax.tick_params(axis="both", bottom=False, left=False, length=0)
     ax.set_title("图 4：消融实验 MSE 对比", fontsize=13, fontweight="bold", pad=12)
     add_note(fig, "ADE 机制贡献最大 (+11.8%)，三项改进策略对算法精度均有正向作用。")
     save(fig, "Fig4_Ablation_MSE.png")
@@ -301,17 +312,20 @@ def draw_fig5():
     pcts   = [d[2] for d in ablation_ast]
     colors = [d[3] for d in ablation_ast]
 
-    bars = ax.bar(labels, asts, color=colors, width=0.52, edgecolor="white", linewidth=0.6)
+    bars = ax.bar(labels, asts, color=colors, width=0.52, edgecolor="white", linewidth=0.6,
+                  zorder=3)
     for bar, val, pct in zip(bars, asts, pcts):
         lbl = f"{val:.1f}s" if pct == 0 else f"{val:.1f}s ({pct:+.1f}%)"
-        ax.text(bar.get_x() + bar.get_width() / 2, val + max(asts)*0.02,
-                lbl, ha="center", va="bottom", fontsize=11, color="#000000")
+        ax.annotate(lbl,
+                    xy=(bar.get_x() + bar.get_width() / 2, val),
+                    xytext=(0, 3), textcoords="offset points",
+                    ha="center", va="bottom", fontsize=11, color="#000000")
 
     ax.set_ylim(0, max(asts) * 1.20)
     ax.set_ylabel("平均搜索时间 (s)", fontsize=12, labelpad=8)
     open_axes(ax)
     ax.spines["left"].set_linewidth(0.6)
-    ax.tick_params(axis="y", length=3)
+    ax.tick_params(axis="both", bottom=False, left=False, length=0)
     ax.set_title("图 5：消融实验 AST 对比", fontsize=13, fontweight="bold", pad=12)
     add_note(fig, "移除各模块后 AST 略有下降，但 MSE 显著上升，说明各模块的计算开销换取了精度提升。")
     save(fig, "Fig5_Ablation_AST.png")
@@ -341,7 +355,7 @@ def draw_fig6():
     ax.plot(t, freq_exp,  color=GRAY_LIGHT, lw=1.8, ls="--",  label="经验参数组")
     ax.plot(t, freq_dbo,  color="#999999",   lw=1.8, ls="-.",  label="DBO 优化组")
     ax.plot(t, freq_idbo, color=IDBO_RED,    lw=2.6, ls="-",   label="IDBO 优化组（本文）")
-    ax.axhline(50.0, color="gray", lw=0.8, ls=":")
+    ax.axhline(50.0, color="black", lw=1.5, ls="--", alpha=0.6, zorder=1)
 
     for ts, lb, col in [(3.20, "3.20 s", GRAY_LIGHT), (3.03, "3.03 s", "#999999"), (2.60, "2.60 s", IDBO_RED)]:
         ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
@@ -383,7 +397,7 @@ def draw_fig7():
     ax.plot(t, spd_exp,  color=GRAY_LIGHT, lw=1.8, ls="--",  label="经验参数组")
     ax.plot(t, spd_dbo,  color="#999999",   lw=1.8, ls="-.",  label="DBO 优化组")
     ax.plot(t, spd_idbo, color=IDBO_RED,    lw=2.6, ls="-",   label="IDBO 优化组（本文）")
-    ax.axhline(0, color="gray", lw=0.8, ls=":")
+    ax.axhline(0, color="black", lw=1.5, ls="--", alpha=0.6, zorder=1)
 
     for ts, lb, col in [(3.50, "3.50 s", GRAY_LIGHT), (3.10, "3.10 s", "#999999"), (2.70, "2.70 s", IDBO_RED)]:
         ax.axvline(t0 + ts, color=col, lw=1.1, ls=":", alpha=0.7)
